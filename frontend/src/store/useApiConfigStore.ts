@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ApiConfig, TextApiConfig, ImageApiConfig, ApiConfigState } from '@/types/api-config';
+import type { TextApiConfig, ImageApiConfig, ApiConfigState } from '@/types/api-config';
 import { API_TEMPLATES } from '@/types/api-config';
 
 interface ApiConfigStore extends ApiConfigState {
@@ -40,29 +40,41 @@ export const useApiConfigStore = create<ApiConfigStore>()(
 
       // Actions
       addTextApi: (config) => {
+        console.log('useApiConfigStore: addTextApi called with config:', config);
         const newApi: TextApiConfig = {
           ...config,
           id: generateId(),
           type: 'text',
         };
-        set((state) => ({
-          textApis: [...state.textApis, newApi],
-          // 如果是第一个API，设为默认
-          defaultTextApi: state.textApis.length === 0 ? newApi.id : state.defaultTextApi,
-        }));
+        console.log('useApiConfigStore: Created new text API:', newApi);
+        set((state) => {
+          const newState = {
+            textApis: [...state.textApis, newApi],
+            // 如果是第一个API，设为默认
+            defaultTextApi: state.textApis.length === 0 ? newApi.id : state.defaultTextApi,
+          };
+          console.log('useApiConfigStore: New state after adding text API:', newState);
+          return newState;
+        });
       },
 
       addImageApi: (config) => {
+        console.log('useApiConfigStore: addImageApi called with config:', config);
         const newApi: ImageApiConfig = {
           ...config,
           id: generateId(),
           type: 'image',
         };
-        set((state) => ({
-          imageApis: [...state.imageApis, newApi],
-          // 如果是第一个API，设为默认
-          defaultImageApi: state.imageApis.length === 0 ? newApi.id : state.defaultImageApi,
-        }));
+        console.log('useApiConfigStore: Created new image API:', newApi);
+        set((state) => {
+          const newState = {
+            imageApis: [...state.imageApis, newApi],
+            // 如果是第一个API，设为默认
+            defaultImageApi: state.imageApis.length === 0 ? newApi.id : state.defaultImageApi,
+          };
+          console.log('useApiConfigStore: New state after adding image API:', newState);
+          return newState;
+        });
       },
 
       updateTextApi: (id, updates) => {

@@ -45,6 +45,7 @@ export const ApiConfigWizard: React.FC<ApiConfigWizardProps> = ({ isOpen, onClos
       addTextApi({
         ...template,
         apiKey: configs.text.apiKey,
+        ...(configs.text.secretKey && { secretKey: configs.text.secretKey }),
         enabled: true,
       });
       // addTextApi会自动设置为默认API（如果是第一个）
@@ -56,6 +57,7 @@ export const ApiConfigWizard: React.FC<ApiConfigWizardProps> = ({ isOpen, onClos
       addImageApi({
         ...template,
         apiKey: configs.image.apiKey,
+        ...(configs.image.secretKey && { secretKey: configs.image.secretKey }),
         enabled: true,
       });
       // addImageApi会自动设置为默认API（如果是第一个）
@@ -188,6 +190,18 @@ export const ApiConfigWizard: React.FC<ApiConfigWizardProps> = ({ isOpen, onClos
             />
           </div>
 
+          {selectedProviders.text === 'baidu' && (
+            <div>
+              <label className="block text-sm font-medium mb-2">Secret Key *</label>
+              <Input
+                type="password"
+                placeholder="输入Secret Key"
+                value={configs.text?.secretKey || ''}
+                onChange={(e) => handleConfigChange('text', 'secretKey', e.target.value)}
+              />
+            </div>
+          )}
+
           {suggestions.tips && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="text-sm text-blue-700">{suggestions.tips}</div>
@@ -202,7 +216,7 @@ export const ApiConfigWizard: React.FC<ApiConfigWizardProps> = ({ isOpen, onClos
           </Button>
           <Button 
             onClick={() => setCurrentStep('image-config')} 
-            disabled={!configs.text?.apiKey}
+            disabled={!configs.text?.apiKey || (selectedProviders.text === 'baidu' && !configs.text?.secretKey)}
             className="flex-1"
           >
             下一步
@@ -240,6 +254,18 @@ export const ApiConfigWizard: React.FC<ApiConfigWizardProps> = ({ isOpen, onClos
             />
           </div>
 
+          {selectedProviders.image === 'baidu' && (
+            <div>
+              <label className="block text-sm font-medium mb-2">Secret Key *</label>
+              <Input
+                type="password"
+                placeholder="输入Secret Key"
+                value={configs.image?.secretKey || ''}
+                onChange={(e) => handleConfigChange('image', 'secretKey', e.target.value)}
+              />
+            </div>
+          )}
+
           {suggestions.tips && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="text-sm text-blue-700">{suggestions.tips}</div>
@@ -254,7 +280,7 @@ export const ApiConfigWizard: React.FC<ApiConfigWizardProps> = ({ isOpen, onClos
           </Button>
           <Button 
             onClick={() => setCurrentStep('complete')} 
-            disabled={!configs.image?.apiKey}
+            disabled={!configs.image?.apiKey || (selectedProviders.image === 'baidu' && !configs.image?.secretKey)}
             className="flex-1"
           >
             下一步

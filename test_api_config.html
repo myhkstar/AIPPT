@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API配置测试</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>API配置测试</h1>
+    
+    <div>
+        <h2>1. 测试获取提供商列表</h2>
+        <button onclick="testGetProviders()">获取提供商</button>
+        <pre id="providers-result"></pre>
+    </div>
+    
+    <div>
+        <h2>2. 测试获取Google模型</h2>
+        <button onclick="testGetGoogleModels()">获取Google模型</button>
+        <pre id="google-models-result"></pre>
+    </div>
+    
+    <div>
+        <h2>3. 测试本地存储</h2>
+        <button onclick="testLocalStorage()">测试本地存储</button>
+        <pre id="localstorage-result"></pre>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+        
+        async function testGetProviders() {
+            try {
+                const response = await axios.get(`${API_BASE}/api/config/providers`);
+                document.getElementById('providers-result').textContent = JSON.stringify(response.data, null, 2);
+            } catch (error) {
+                document.getElementById('providers-result').textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        async function testGetGoogleModels() {
+            try {
+                const response = await axios.get(`${API_BASE}/api/config/providers/google/models`);
+                document.getElementById('google-models-result').textContent = JSON.stringify(response.data, null, 2);
+            } catch (error) {
+                document.getElementById('google-models-result').textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        function testLocalStorage() {
+            // 模拟API配置存储
+            const testConfig = {
+                textApis: [{
+                    id: 'test-123',
+                    name: 'Test Google API',
+                    type: 'text',
+                    provider: 'google',
+                    model: 'gemini-2.5-flash',
+                    apiKey: 'test-key',
+                    enabled: true
+                }],
+                imageApis: [],
+                defaultTextApi: 'test-123',
+                defaultImageApi: null
+            };
+            
+            // 保存到localStorage
+            localStorage.setItem('api-config-storage', JSON.stringify({
+                state: testConfig,
+                version: 1
+            }));
+            
+            // 读取验证
+            const saved = localStorage.getItem('api-config-storage');
+            document.getElementById('localstorage-result').textContent = 'Saved: ' + saved;
+        }
+    </script>
+</body>
+</html>

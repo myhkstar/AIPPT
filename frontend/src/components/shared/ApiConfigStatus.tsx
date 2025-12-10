@@ -1,26 +1,43 @@
-import React, { useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CheckCircle, AlertCircle, XCircle, Loader } from 'lucide-react';
 import { useApiConfigStore } from '@/store/useApiConfigStore';
-import { getApiConfigStatus } from '@/utils/api-config';
-import { clearApiConfigCache } from '@/utils/api-cache';
+import { StepByStepApiWizard } from './StepByStepApiWizard';
+import { ApiConfigModal } from './ApiConfigModal';
 
 interface ApiConfigStatusProps {
   className?: string;
   showText?: boolean;
+  clickable?: boolean;
 }
 
 export const ApiConfigStatus: React.FC<ApiConfigStatusProps> = ({ 
   className = '', 
-  showText = true 
+  showText = true,
+  clickable = true
 }) => {
-  // 订阅store状态变化以实时更新
-  const { textApis, imageApis, defaultTextApi, defaultImageApi } = useApiConfigStore();
-  // 当store状态变化时强制刷新
-  useEffect(() => {
-    clearApiConfigCache(); // 清除缓存确保获取最新状态
-  }, [textApis, imageApis, defaultTextApi, defaultImageApi]);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
-  const status = getApiConfigStatus();
+  // 直接从store获取状态，确保响应式更新
+  const { textApis, imageApis, defaultTextApi, defaultImageApi } = useApiConfigStore();
+  
+  // 计算配置状态
+  const status = useMemo(() => {
+    const defaultText = textApis.find(api => api.id === defaultTextApi);
+    const defaultImage = imageApis.find(api => api.id === defaultImageApi);
+    
+    const hasText = !!(defaultText && defaultText.enabled && defaultText.apiKey);
+    const hasImage = !!(defaultImage && defaultImage.enabled && defaultImage.apiKey);
+    
+    return {
+      hasText,
+      hasImage,
+      hasAny: hasText || hasImage,
+      isComplete: hasText && hasImage,
+      status: hasText && hasImage ? 'complete' : 
+              hasText || hasImage ? 'partial' : 'none'
+    };
+  }, [textApis, imageApis, defaultTextApi, defaultImageApi]);
   
   const getStatusIcon = () => {
     switch (status.status) {
@@ -42,7 +59,7 @@ export const ApiConfigStatus: React.FC<ApiConfigStatusProps> = ({
       case 'partial':
         return status.hasText ? '仅文本API' : '仅图像API';
       case 'none':
-        return '未配置API';
+        return '点击配置API';
       default:
         return '检查中...';
     }
@@ -61,14 +78,46 @@ export const ApiConfigStatus: React.FC<ApiConfigStatusProps> = ({
     }
   };
 
+  const handleClick = () => {
+    if (!clickable) return;
+    
+    // 如果没有任何API配置，打开向导；否则打开配置模态框
+    if (!status.hasAny) {
+      setIsWizardOpen(true);
+    } else {
+      setIsModalOpen(true);
+    }
+  };
+
+  const baseClasses = `flex items-center space-x-2 px-3 py-1 rounded-full border ${getStatusColor()} ${className}`;
+  const clickableClasses = clickable ? 'cursor-pointer hover:opacity-80 transition-opacity' : '';
+
   return (
-    <div className={`flex items-center space-x-2 px-3 py-1 rounded-full border ${getStatusColor()} ${className}`}>
-      {getStatusIcon()}
-      {showText && (
-        <span className="text-sm font-medium">
-          {getStatusText()}
-        </span>
-      )}
-    </div>
+    <>
+      <div 
+        className={`${baseClasses} ${clickableClasses}`}
+        onClick={handleClick}
+        title={clickable ? '点击配置API' : undefined}
+      >
+        {getStatusIcon()}
+        {showText && (
+          <span className="text-sm font-medium">
+            {getStatusText()}
+          </span>
+        )}
+      </div>
+
+      {/* 快速配置向导 */}
+      <StepByStepApiWizard
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+      />
+
+      {/* API配置模态框 */}
+      <ApiConfigModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
+    </>
   );
 };

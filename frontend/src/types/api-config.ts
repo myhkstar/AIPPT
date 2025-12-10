@@ -9,23 +9,26 @@ export interface BaseApiConfig {
 
 export interface TextApiConfig extends BaseApiConfig {
   type: 'text';
-  provider: 'google' | 'openai' | 'anthropic' | 'custom';
+  provider: 'google' | 'openai' | 'anthropic' | 'qwen' | 'baidu' | 'openai_compatible' | 'custom';
   apiKey: string;
   baseUrl?: string;
   model: string;
   maxTokens?: number;
   temperature?: number;
+  secretKey?: string; // 百度需要的secret key
+  enableThinking?: boolean; // 支持思考模式（如DeepSeek）
 }
 
 export interface ImageApiConfig extends BaseApiConfig {
   type: 'image';
-  provider: 'google' | 'jimeng' | 'midjourney' | 'dalle' | 'stable-diffusion' | 'custom';
+  provider: 'google' | 'jimeng' | 'midjourney' | 'dalle' | 'stable-diffusion' | 'qwen' | 'baidu' | 'openai_compatible' | 'custom';
   apiKey: string;
   baseUrl?: string;
   model?: string;
   aspectRatio?: string;
   resolution?: string;
   style?: string;
+  secretKey?: string; // 百度需要的secret key
 }
 
 export type ApiConfig = TextApiConfig | ImageApiConfig;
@@ -62,6 +65,39 @@ export const API_TEMPLATES = {
       baseUrl: 'https://api.anthropic.com',
       model: 'claude-3-sonnet-20240229',
       maxTokens: 4096,
+      temperature: 0.7,
+    },
+    qwen: {
+      name: '通义千问',
+      provider: 'qwen' as const,
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      model: 'qwen-max',
+      maxTokens: 4000,
+      temperature: 0.7,
+    },
+    baidu: {
+      name: '百度文心一言',
+      provider: 'baidu' as const,
+      baseUrl: 'https://aip.baidubce.com',
+      model: 'ernie-4.0-8k',
+      maxTokens: 4000,
+      temperature: 0.7,
+    },
+    deepseek: {
+      name: 'DeepSeek',
+      provider: 'openai_compatible' as const,
+      baseUrl: 'https://api.deepseek.com/v1',
+      model: 'deepseek-v3.2',
+      maxTokens: 4000,
+      temperature: 0.7,
+      enableThinking: true,
+    },
+    alibaba_bailian: {
+      name: '阿里云百炼',
+      provider: 'openai_compatible' as const,
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      model: 'qwen-max',
+      maxTokens: 4000,
       temperature: 0.7,
     },
   },
@@ -103,6 +139,30 @@ export const API_TEMPLATES = {
       baseUrl: 'https://api.stability.ai',
       model: 'stable-diffusion-xl-1024-v1-0',
       resolution: '1024x576',
+    },
+    qwen: {
+      name: '通义千问图像',
+      provider: 'qwen' as const,
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      model: 'qwen-vl-plus',
+      aspectRatio: '16:9',
+      resolution: '1024x1024',
+    },
+    baidu: {
+      name: '文心一格',
+      provider: 'baidu' as const,
+      baseUrl: 'https://aip.baidubce.com',
+      model: 'stable-diffusion-xl',
+      aspectRatio: '16:9',
+      resolution: '1024x1024',
+    },
+    flux: {
+      name: 'Flux (OpenAI兼容)',
+      provider: 'openai_compatible' as const,
+      baseUrl: 'https://api.bfl.ml/v1',
+      model: 'flux-pro-1.1',
+      aspectRatio: '16:9',
+      resolution: '1024x1024',
     },
   },
 } as const;

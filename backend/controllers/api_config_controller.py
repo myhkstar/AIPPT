@@ -27,6 +27,20 @@ def get_available_providers():
         return error_response(f"Failed to get providers: {str(e)}")
 
 
+@api_config_bp.route('/providers/<provider_type>/models', methods=['GET'])
+def get_provider_models(provider_type):
+    """Get supported models for a specific provider"""
+    try:
+        models = ProviderFactory.get_provider_models(provider_type)
+        return success_response({
+            'provider': provider_type,
+            'models': models
+        })
+    except Exception as e:
+        logger.error(f"Error getting models for provider {provider_type}: {str(e)}")
+        return error_response(f"Failed to get models for provider {provider_type}: {str(e)}")
+
+
 @api_config_bp.route('/validate', methods=['POST'])
 def validate_api_config():
     """Validate API configuration"""

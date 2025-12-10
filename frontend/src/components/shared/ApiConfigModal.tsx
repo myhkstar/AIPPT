@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Settings, Trash2, Eye, EyeOff, Download, Upload, AlertTriangle, Info } from 'lucide-react';
+import { Settings, Trash2, Eye, EyeOff, Download, Upload, AlertTriangle, Info, Cpu } from 'lucide-react';
 import { useApiConfigStore } from '@/store/useApiConfigStore';
 import { API_TEMPLATES, type TextApiConfig, type ImageApiConfig } from '@/types/api-config';
 import { validateTextApiConfig, validateImageApiConfig, getApiConfigSuggestions } from '@/utils/api-validation';
@@ -8,6 +8,7 @@ import { Button } from './Button';
 import { Input } from './Input';
 import { Modal } from './Modal';
 import { ApiTestButton } from './ApiTestButton';
+import { ModelConfigModal } from './ModelConfigModal';
 
 interface ApiConfigModalProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
   const [activeTab, setActiveTab] = useState<'text' | 'image'>('text');
   const [editingApi, setEditingApi] = useState<string | null>(null);
   const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
+  const [isModelConfigOpen, setIsModelConfigOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -142,7 +144,7 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
               {api.provider}
             </span>
             {!validation.isValid && (
-              <AlertTriangle className="w-4 h-4 text-red-500" title="配置有误" />
+              <AlertTriangle className="w-4 h-4 text-red-500" />
             )}
           </div>
           <div className="flex items-center space-x-2">
@@ -246,14 +248,52 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
               </div>
             </div>
 
-            {api.baseUrl && (
+            {api.baseUrl !== undefined && (
               <div>
                 <label className="block text-sm font-medium mb-1">Base URL</label>
                 <Input
-                  value={api.baseUrl}
+                  value={api.baseUrl || ''}
                   onChange={(e) => handleUpdateApi(api.id, 'baseUrl', e.target.value)}
                   placeholder="API基础URL"
                 />
+              </div>
+            )}
+
+            {/* 百度API需要Secret Key */}
+            {api.provider === 'baidu' && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Secret Key</label>
+                <div className="flex space-x-2">
+                  <Input
+                    type={showKey ? 'text' : 'password'}
+                    value={api.secretKey || ''}
+                    onChange={(e) => handleUpdateApi(api.id, 'secretKey', e.target.value)}
+                    placeholder="输入Secret Key"
+                    className="flex-1"
+                  />
+                  <button
+                    onClick={() => toggleShowApiKey(api.id + '_secret')}
+                    className="p-2 text-gray-600 hover:text-blue-600"
+                  >
+                    {showApiKeys[api.id + '_secret'] ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* OpenAI兼容API的思考模式选项 */}
+            {api.type === 'text' && api.provider === 'openai_compatible' && (
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id={`thinking_${api.id}`}
+                  checked={(api as any).enableThinking || false}
+                  onChange={(e) => handleUpdateApi(api.id, 'enableThinking', e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <label htmlFor={`thinking_${api.id}`} className="text-sm text-gray-700">
+                  启用思考模式 (适用于DeepSeek等支持推理的模型)
+                </label>
               </div>
             )}
 
@@ -335,7 +375,7 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="API配置管理" size="large">
+    <Modal isOpen={isOpen} onClose={onClose} title="API配置管理" size="lg">
       <div className="space-y-6">
         {/* 标签页 */}
         <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
@@ -380,6 +420,10 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
                   <option value="google">Google Gemini</option>
                   <option value="openai">OpenAI GPT</option>
                   <option value="anthropic">Anthropic Claude</option>
+                  <option value="qwen">通义千问</option>
+                  <option value="baidu">百度文心一言</option>
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="alibaba_bailian">阿里云百炼</option>
                 </>
               ) : (
                 <>
@@ -388,6 +432,9 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
                   <option value="dalle">DALL-E 3</option>
                   <option value="midjourney">Midjourney</option>
                   <option value="stable-diffusion">Stable Diffusion</option>
+                  <option value="qwen">通义千问图像</option>
+                  <option value="baidu">文心一格</option>
+                  <option value="flux">Flux (OpenAI兼容)</option>
                 </>
               )}
             </select>
@@ -395,7 +442,16 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
           
           <div className="flex space-x-2">
             <Button
-              variant="outline"
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsModelConfigOpen(true)}
+              className="flex items-center space-x-1"
+            >
+              <Cpu size={16} />
+              <span>模型配置</span>
+            </Button>
+            <Button
+              variant="secondary"
               size="sm"
               onClick={handleExportConfig}
               className="flex items-center space-x-1"
@@ -410,15 +466,10 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
                 onChange={handleImportConfig}
                 className="hidden"
               />
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center space-x-1"
-                as="span"
-              >
+              <div className="inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-banana-500 focus:ring-offset-2 bg-white border border-banana-500 text-black hover:bg-banana-50 h-8 px-3 text-sm">
                 <Upload size={16} />
-                <span>导入配置</span>
-              </Button>
+                <span className="ml-1">导入配置</span>
+              </div>
             </label>
           </div>
         </div>
@@ -455,6 +506,12 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
           </ul>
         </div>
       </div>
+
+      {/* 模型配置模态框 */}
+      <ModelConfigModal
+        isOpen={isModelConfigOpen}
+        onClose={() => setIsModelConfigOpen(false)}
+      />
     </Modal>
   );
 };

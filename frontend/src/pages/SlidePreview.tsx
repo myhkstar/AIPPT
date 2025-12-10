@@ -16,7 +16,7 @@ import {
   Image as ImageIcon,
   ImagePlus,
 } from 'lucide-react';
-import { Button, Loading, Modal, Textarea, useToast, useConfirm, MaterialSelector, Markdown } from '@/components/shared';
+import { Button, Loading, Modal, Textarea, useToast, useConfirm, MaterialSelector, Markdown, BatchRetryButton, BatchSelectModal } from '@/components/shared';
 import { MaterialGeneratorModal } from '@/components/shared/MaterialGeneratorModal';
 import { TemplateSelector, getTemplateFile } from '@/components/shared/TemplateSelector';
 import { listUserTemplates, type UserTemplate } from '@/api/endpoints';
@@ -80,6 +80,8 @@ export const SlidePreview: React.FC = () => {
   // 素材选择器模态开关
   const [userTemplates, setUserTemplates] = useState<UserTemplate[]>([]);
   const [isMaterialSelectorOpen, setIsMaterialSelectorOpen] = useState(false);
+  // 批量重试模态开关
+  const [isBatchSelectModalOpen, setIsBatchSelectModalOpen] = useState(false);
   // 每页编辑参数缓存（前端会话内缓存，便于重复执行）
   const [editContextByPage, setEditContextByPage] = useState<Record<string, {
     prompt: string;
@@ -758,6 +760,19 @@ export const SlidePreview: React.FC = () => {
               批量生成图片 ({currentProject.pages.length})
             </Button>
             
+            {/* 批量重试失败项 */}
+            <div className="flex items-center gap-2">
+              <BatchRetryButton className="flex-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsBatchSelectModalOpen(true)}
+                className="text-xs text-gray-600 hover:text-gray-800"
+              >
+                选择重试
+              </Button>
+            </div>
+            
             {/* 额外要求 */}
             <div className="border-t border-gray-200 pt-2 md:pt-3">
               <button
@@ -1372,6 +1387,11 @@ export const SlidePreview: React.FC = () => {
           />
         </>
       )}
+      {/* 批量选择重试模态框 */}
+      <BatchSelectModal
+        isOpen={isBatchSelectModalOpen}
+        onClose={() => setIsBatchSelectModalOpen(false)}
+      />
     </div>
   );
 };

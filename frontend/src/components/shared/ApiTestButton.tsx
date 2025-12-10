@@ -32,6 +32,7 @@ export const ApiTestButton: React.FC<ApiTestButtonProps> = ({ api, className = '
           api_key: api.apiKey,
           base_url: api.baseUrl,
           model: api.model,
+          ...(api.secretKey && { secretKey: api.secretKey }),
           ...(api.type === 'text' ? {
             max_tokens: (api as TextApiConfig).maxTokens,
             temperature: (api as TextApiConfig).temperature,
@@ -90,7 +91,7 @@ export const ApiTestButton: React.FC<ApiTestButtonProps> = ({ api, className = '
       case 'error':
         return 'secondary' as const;
       default:
-        return 'outline' as const;
+        return 'ghost' as const;
     }
   };
 

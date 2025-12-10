@@ -12,13 +12,13 @@ const presetTemplates = [
   { id: '3', name: '拟物玻璃', preview: '/templates/template_glass.png' },
   { id: '4', name: '科技蓝', preview: '/templates/template_b.png' },
   { id: '5', name: '简约商务', preview: '/templates/template_s.png' },
-  { id: '6', name: '风格F', preview: '/templates/template_F.png' },
-  { id: '7', name: '风格G1', preview: '/templates/template_G1.png' },
-  { id: '8', name: '风格G2', preview: '/templates/template_G2.png' },
-  { id: '9', name: '妇科风格', preview: '/templates/template_GYN.png' },
-  { id: '10', name: '风格M', preview: '/templates/template_M.png' },
-  { id: '11', name: '风格M1', preview: '/templates/template_M1.png' },
-  { id: '12', name: '风格M2', preview: '/templates/template_M2.png' },
+  { id: '6', name: '卡通美食', preview: '/templates/template_F.png' },
+  { id: '7', name: 'G1风格', preview: '/templates/template_G1.png' },
+  { id: '8', name: 'G2风格', preview: '/templates/template_G2.png' },
+  { id: '9', name: 'YN风格', preview: '/templates/template_GYN.png' },
+  { id: '10', name: 'M风格', preview: '/templates/template_M.png' },
+  { id: '11', name: 'M1风格', preview: '/templates/template_M1.png' },
+  { id: '12', name: 'M2风格', preview: '/templates/template_M2.png' },
 ];
 
 interface TemplateSelectorProps {

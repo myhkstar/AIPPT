@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Settings, Zap } from 'lucide-react';
 import { Button } from './Button';
 import { ApiConfigModal } from './ApiConfigModal';
-import { ApiConfigWizard } from './ApiConfigWizard';
+import { StepByStepApiWizard } from './StepByStepApiWizard';
 import { useApiConfigStore } from '@/store/useApiConfigStore';
 
 interface ApiConfigButtonProps {
@@ -68,7 +68,7 @@ export const ApiConfigButton: React.FC<ApiConfigButtonProps> = ({
         onClose={() => setIsModalOpen(false)}
       />
 
-      <ApiConfigWizard
+      <StepByStepApiWizard
         isOpen={isWizardOpen}
         onClose={() => setIsWizardOpen(false)}
       />

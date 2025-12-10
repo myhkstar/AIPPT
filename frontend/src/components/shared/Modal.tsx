@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/utils';
 
@@ -36,7 +37,7 @@ export const Modal: React.FC<ModalProps> = ({
     xl: 'max-w-4xl',
   };
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-[99999] overflow-y-auto" style={{ zIndex: 99999 }}>
       {/* 遮罩 */}
       <div
@@ -75,5 +76,8 @@ export const Modal: React.FC<ModalProps> = ({
       </div>
     </div>
   );
+
+  // 使用 Portal 将 Modal 渲染到 body 层级，避免被父元素的样式影响
+  return createPortal(modalContent, document.body);
 };
 

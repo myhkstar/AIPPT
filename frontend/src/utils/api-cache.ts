@@ -17,11 +17,14 @@ const calculateConfigHash = (textApi: any, imageApi: any): string => {
     text: textApi ? {
       provider: textApi.provider,
       apiKey: textApi.apiKey?.slice(-4), // 只用最后4位计算哈希
+      secretKey: textApi.secretKey?.slice(-4), // 百度API的secretKey
+      enableThinking: textApi.enableThinking, // OpenAI兼容API的思考模式
       model: textApi.model,
     } : null,
     image: imageApi ? {
       provider: imageApi.provider,
       apiKey: imageApi.apiKey?.slice(-4),
+      secretKey: imageApi.secretKey?.slice(-4), // 百度API的secretKey
       model: imageApi.model,
     } : null,
   });
@@ -62,6 +65,8 @@ export const getCachedApiConfig = () => {
       model: defaultTextApi.model,
       max_tokens: defaultTextApi.maxTokens,
       temperature: defaultTextApi.temperature,
+      ...(defaultTextApi.secretKey && { secretKey: defaultTextApi.secretKey }),
+      ...(defaultTextApi.enableThinking && { enableThinking: defaultTextApi.enableThinking }),
       enabled: true,
     };
   }
@@ -75,6 +80,7 @@ export const getCachedApiConfig = () => {
       aspect_ratio: defaultImageApi.aspectRatio,
       resolution: defaultImageApi.resolution,
       style: defaultImageApi.style,
+      ...(defaultImageApi.secretKey && { secretKey: defaultImageApi.secretKey }),
       enabled: true,
     };
   }

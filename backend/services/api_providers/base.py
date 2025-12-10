@@ -18,6 +18,10 @@ class BaseTextProvider(ABC):
     def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text from prompt"""
         pass
+    
+    def get_supported_models(self) -> List[str]:
+        """Get list of supported models for this provider"""
+        return []
 
 
 class BaseImageProvider(ABC):
@@ -42,6 +46,10 @@ class BaseImageProvider(ABC):
                   **kwargs) -> Optional[Image.Image]:
         """Edit existing image with instruction"""
         pass
+    
+    def get_supported_models(self) -> List[str]:
+        """Get list of supported models for this provider"""
+        return []
 
 
 class ProviderError(Exception):

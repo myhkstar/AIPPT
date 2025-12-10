@@ -1,6 +1,5 @@
 import { useApiConfigStore } from '@/store/useApiConfigStore';
 import { getCachedApiConfig } from './api-cache';
-import type { ApiConfig } from '@/types/api-config';
 
 /**
  * 获取当前的API配置，用于发送到后端（使用缓存优化）

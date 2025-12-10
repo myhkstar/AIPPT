@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, FileText, FileEdit, ImagePlus, Paperclip, Palette, Lightbulb, Search } from 'lucide-react';
-import { Button, Textarea, Card, useToast, MaterialGeneratorModal, ReferenceFileList, ReferenceFileSelector, FilePreviewModal, ImagePreviewList, ApiConfigButton, ApiConfigStatus } from '@/components/shared';
+import { Sparkles, FileText, FileEdit, ImagePlus, Paperclip, Palette, Lightbulb, Search, LayoutGrid, Type } from 'lucide-react';
+import { Button, Textarea, Card, useToast, MaterialGeneratorModal, ReferenceFileList, ReferenceFileSelector, FilePreviewModal, ImagePreviewList, ApiConfigButton, ApiConfigStatus, StructuredRequirements, TokenStatsCard } from '@/components/shared';
+import type { StructuredRequirementsData } from '@/components/shared';
 import { TemplateSelector, getTemplateFile } from '@/components/shared/TemplateSelector';
 import { listUserTemplates, type UserTemplate, uploadReferenceFile, type ReferenceFile, associateFileToProject, triggerFileParse, uploadMaterial } from '@/api/endpoints';
 import { useProjectStore } from '@/store/useProjectStore';
 
 type CreationType = 'idea' | 'outline' | 'description';
+type InputMode = 'structured' | 'freeform';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -14,6 +16,7 @@ export const Home: React.FC = () => {
   const { show, ToastContainer } = useToast();
   
   const [activeTab, setActiveTab] = useState<CreationType>('idea');
+  const [inputMode, setInputMode] = useState<InputMode>('structured');
   const [content, setContent] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<File | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -351,6 +354,34 @@ export const Home: React.FC = () => {
     }
   };
 
+  // 结构化输入生成处理
+  const handleStructuredGenerate = async (_data: StructuredRequirementsData, prompt: string) => {
+    try {
+      // 如果有模板ID但没有File，按需加载
+      let templateFile = selectedTemplate;
+      if (!templateFile && (selectedTemplateId || selectedPresetTemplateId)) {
+        const templateId = selectedTemplateId || selectedPresetTemplateId;
+        if (templateId) {
+          templateFile = await getTemplateFile(templateId, userTemplates);
+        }
+      }
+      
+      // 使用 idea 模式创建项目，传入结构化生成的 prompt
+      await initializeProject('idea', prompt, templateFile || undefined);
+      
+      const projectId = localStorage.getItem('currentProjectId');
+      if (!projectId) {
+        show({ message: '项目创建失败', type: 'error' });
+        return;
+      }
+      
+      // 跳转到大纲编辑页
+      navigate(`/project/${projectId}/outline`);
+    } catch (error: any) {
+      console.error('创建项目失败:', error);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!content.trim()) {
       show({ message: '请输入内容', type: 'error' });
@@ -518,9 +549,10 @@ export const Home: React.FC = () => {
             基于 <a href="https://github.com/Anionex/banana-slides" target="_blank" rel="noopener noreferrer" className="text-banana-500 hover:text-banana-600 underline">GitHub Banana Slides</a> 开源项目改造
           </p>
 
-          {/* API配置状态 */}
-          <div className="flex justify-center pt-2">
+          {/* API配置状态和Token统计 */}
+          <div className="flex flex-col items-center gap-2 pt-2">
             <ApiConfigStatus showText={true} />
+            <TokenStatsCard compact />
           </div>
 
           {/* 特性标签 */}
@@ -544,8 +576,35 @@ export const Home: React.FC = () => {
         </div>
 
         {/* 创建卡片 */}
-        <Card className="p-4 md:p-10 bg-white/90 backdrop-blur-xl shadow-2xl border-0 hover:shadow-3xl transition-all duration-300">
-          {/* 选项卡 */}
+        <Card className="p-4 md:p-6 bg-white/90 backdrop-blur-xl shadow-2xl border-0 hover:shadow-3xl transition-all duration-300 max-h-[calc(100vh-200px)] overflow-y-auto">
+          {/* 输入模式切换 */}
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <button
+              onClick={() => setInputMode('structured')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+                inputMode === 'structured'
+                  ? 'bg-banana-100 text-banana-700 border-2 border-banana-400'
+                  : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
+              }`}
+            >
+              <LayoutGrid size={16} />
+              <span>结构化输入</span>
+            </button>
+            <button
+              onClick={() => setInputMode('freeform')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+                inputMode === 'freeform'
+                  ? 'bg-banana-100 text-banana-700 border-2 border-banana-400'
+                  : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
+              }`}
+            >
+              <Type size={16} />
+              <span>自由输入</span>
+            </button>
+          </div>
+
+          {/* 自由输入模式的选项卡 */}
+          {inputMode === 'freeform' && (
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-6 md:mb-8">
             {(Object.keys(tabConfig) as CreationType[]).map((type) => {
               const config = tabConfig[type];
@@ -565,104 +624,137 @@ export const Home: React.FC = () => {
               );
             })}
           </div>
+          )}
 
-          {/* 描述 */}
-          <div className="relative">
-            <p className="text-sm md:text-base mb-4 md:mb-6 leading-relaxed">
-              <span className="inline-flex items-center gap-2 text-gray-600">
-                <Lightbulb size={16} className="text-banana-600 flex-shrink-0" />
-                <span className="font-semibold">
-                  {tabConfig[activeTab].description}
-                </span>
-              </span>
-            </p>
-          </div>
-
-          {/* 输入区 - 带按钮 */}
-          <div className="relative mb-2 group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-banana-400 to-orange-400 rounded-lg opacity-0 group-hover:opacity-20 blur transition-opacity duration-300"></div>
-            <Textarea
-              ref={textareaRef}
-              placeholder={tabConfig[activeTab].placeholder}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onPaste={handlePaste}
-              rows={activeTab === 'idea' ? 4 : 8}
-              className="relative pr-20 md:pr-28 pb-12 md:pb-14 text-sm md:text-base border-2 border-gray-200 focus:border-banana-400 transition-colors duration-200" // 为右下角按钮留空间
+          {/* 结构化输入模式 */}
+          {inputMode === 'structured' && (
+            <StructuredRequirements
+              onGenerate={handleStructuredGenerate}
+              isLoading={isGlobalLoading}
             />
+          )}
 
-            {/* 左下角：上传文件按钮（回形针图标） */}
-            <button
-              type="button"
-              onClick={handlePaperclipClick}
-              className="absolute left-2 md:left-3 bottom-2 md:bottom-3 z-10 p-1.5 md:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors active:scale-95 touch-manipulation"
-              title="选择参考文件"
-            >
-              <Paperclip size={18} className="md:w-5 md:h-5" />
-            </button>
+          {/* 自由输入模式 */}
+          {inputMode === 'freeform' && (
+            <>
+              {/* 描述 */}
+              <div className="relative">
+                <p className="text-sm md:text-base mb-4 md:mb-6 leading-relaxed">
+                  <span className="inline-flex items-center gap-2 text-gray-600">
+                    <Lightbulb size={16} className="text-banana-600 flex-shrink-0" />
+                    <span className="font-semibold">
+                      {tabConfig[activeTab].description}
+                    </span>
+                  </span>
+                </p>
+              </div>
 
-            {/* 右下角：开始生成按钮 */}
-            <div className="absolute right-2 md:right-3 bottom-2 md:bottom-3 z-10">
-              <Button
-                size="sm"
-                onClick={handleSubmit}
-                loading={isGlobalLoading}
-                disabled={
-                  !content.trim() || 
-                  referenceFiles.some(f => f.parse_status === 'pending' || f.parse_status === 'parsing')
-                }
-                className="shadow-sm text-xs md:text-sm px-3 md:px-4"
-              >
-                {referenceFiles.some(f => f.parse_status === 'pending' || f.parse_status === 'parsing')
-                  ? '解析中...'
-                  : '下一步'}
-              </Button>
-            </div>
-          </div>
+              {/* 输入区 - 带按钮 */}
+              <div className="relative mb-2 group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-banana-400 to-orange-400 rounded-lg opacity-0 group-hover:opacity-20 blur transition-opacity duration-300"></div>
+                <Textarea
+                  ref={textareaRef}
+                  placeholder={tabConfig[activeTab].placeholder}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  onPaste={handlePaste}
+                  rows={activeTab === 'idea' ? 4 : 8}
+                  className="relative pr-20 md:pr-28 pb-12 md:pb-14 text-sm md:text-base border-2 border-gray-200 focus:border-banana-400 transition-colors duration-200"
+                />
 
-          {/* 隐藏的文件输入 */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+                {/* 左下角：上传文件按钮（回形针图标） */}
+                <button
+                  type="button"
+                  onClick={handlePaperclipClick}
+                  className="absolute left-2 md:left-3 bottom-2 md:bottom-3 z-10 p-1.5 md:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors active:scale-95 touch-manipulation"
+                  title="选择参考文件"
+                >
+                  <Paperclip size={18} className="md:w-5 md:h-5" />
+                </button>
 
-          {/* 图片预览列表 */}
-          <ImagePreviewList
-            content={content}
-            onRemoveImage={handleRemoveImage}
-            className="mb-4"
-          />
+                {/* 右下角：快速预览按钮 */}
+                <div className="absolute right-2 md:right-3 bottom-2 md:bottom-3 z-10">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shadow-sm text-xs md:text-sm px-3 md:px-4 text-gray-500 hover:text-gray-700"
+                  >
+                    预览
+                  </Button>
+                </div>
+              </div>
 
-          <ReferenceFileList
-            files={referenceFiles}
-            onFileClick={setPreviewFileId}
-            onFileDelete={handleFileRemove}
-            onFileStatusChange={handleFileStatusChange}
-            deleteMode="remove"
-            className="mb-4"
-          />
+              {/* 隐藏的文件输入 */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
 
-          {/* 模板选择 */}
-          <div className="mb-6 md:mb-8 pt-4 border-t border-gray-100">
-            <div className="flex items-center gap-2 mb-3 md:mb-4">
+              {/* 图片预览列表 */}
+              <ImagePreviewList
+                content={content}
+                onRemoveImage={handleRemoveImage}
+                className="mb-4"
+              />
+
+              <ReferenceFileList
+                files={referenceFiles}
+                onFileClick={setPreviewFileId}
+                onFileDelete={handleFileRemove}
+                onFileStatusChange={handleFileStatusChange}
+                deleteMode="remove"
+                className="mb-4"
+              />
+            </>
+          )}
+
+          {/* 模板选择 - 可折叠 */}
+          <details className="mb-4 pt-4 border-t border-gray-100 group">
+            <summary className="flex items-center gap-2 mb-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
               <div className="flex items-center gap-2">
                 <Palette size={18} className="text-orange-600 flex-shrink-0" />
                 <h3 className="text-base md:text-lg font-semibold text-gray-900">
-                  选择风格模板
+                  选择风格模板 (可选)
                 </h3>
               </div>
+              <span className="ml-auto text-gray-400 group-open:rotate-90 transition-transform">▶</span>
+            </summary>
+            <div className="pl-6">
+              <TemplateSelector
+                onSelect={handleTemplateSelect}
+                selectedTemplateId={selectedTemplateId}
+                selectedPresetTemplateId={selectedPresetTemplateId}
+                showUpload={true} // 在主页上传的模板保存到用户模板库
+                projectId={currentProjectId}
+              />
             </div>
-            <TemplateSelector
-              onSelect={handleTemplateSelect}
-              selectedTemplateId={selectedTemplateId}
-              selectedPresetTemplateId={selectedPresetTemplateId}
-              showUpload={true} // 在主页上传的模板保存到用户模板库
-              projectId={currentProjectId}
-            />
+          </details>
+
+          {/* 底部操作区 - 固定在卡片底部 */}
+          <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-gray-100 pt-4 mt-4">
+            {inputMode === 'freeform' && (
+              <div className="flex justify-end">
+                <Button
+                  size="lg"
+                  onClick={handleSubmit}
+                  loading={isGlobalLoading}
+                  disabled={
+                    !content.trim() || 
+                    referenceFiles.some(f => f.parse_status === 'pending' || f.parse_status === 'parsing')
+                  }
+                  className="shadow-lg px-8 py-3 text-base font-semibold"
+                  icon={<Sparkles size={20} />}
+                >
+                  {referenceFiles.some(f => f.parse_status === 'pending' || f.parse_status === 'parsing')
+                    ? '解析中...'
+                    : '开始生成 PPT'}
+                </Button>
+              </div>
+            )}
           </div>
 
         </Card>
