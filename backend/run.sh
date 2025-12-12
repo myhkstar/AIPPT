@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# TYQ Customized Backend Startup Script
+# PPTer Customized Backend Startup Script
 
 echo "╔══════════════════════════════════════╗"
-echo "║   🎯 TYQ Customized API Server 🎯   ║"
+echo "║   🎯 PPTer Customized API Server 🎯   ║"
 echo "╚══════════════════════════════════════╝"
 echo ""
 

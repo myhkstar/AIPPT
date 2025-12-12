@@ -109,13 +109,13 @@ def create_app():
     # Health check endpoint
     @app.route('/health')
     def health_check():
-        return {'status': 'ok', 'message': 'TYQ Customized API is running'}
+        return {'status': 'ok', 'message': 'PPTer Customized API is running'}
     
     # Root endpoint
     @app.route('/')
     def index():
         return {
-            'name': 'TYQ Customized API',
+            'name': 'PPTer Customized API',
             'version': '1.0.0',
             'description': 'AI-powered PPT generation service',
             'endpoints': {
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     logging.info(
         "\n"
         "╔══════════════════════════════════════╗\n"
-        "║   🎯 TYQ Customized API Server 🎯   ║\n"
+        "║   🎯 PPTer Customized API Server 🎯   ║\n"
         "╚══════════════════════════════════════╝\n"
         f"Server starting on: http://localhost:{port}\n"
         f"Environment: {os.getenv('FLASK_ENV', 'development')}\n"

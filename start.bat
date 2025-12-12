@@ -3,7 +3,7 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo   TYQ Customized - One Click Startup
+echo   PPTer Customized - One Click Startup
 echo ========================================
 echo.
 
@@ -75,7 +75,7 @@ echo [OK] Frontend dependencies installed
 
 echo.
 echo [5/6] Starting backend service (port 5000)...
-start "TYQ-Backend" /min cmd /c "cd /d "%SCRIPT_DIR%backend" && uv run python app.py"
+start "PPTer-Backend" /min cmd /c "cd /d "%SCRIPT_DIR%backend" && uv run python app.py"
 
 echo Waiting for backend to initialize...
 timeout /t 3 /nobreak >nul
@@ -88,7 +88,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo [6/6] Starting frontend service (port 3000)...
-start "TYQ-Frontend" /min cmd /c "cd /d "%SCRIPT_DIR%frontend" && npm run dev"
+start "PPTer-Frontend" /min cmd /c "cd /d "%SCRIPT_DIR%frontend" && npm run dev"
 
 timeout /t 3 /nobreak >nul
 

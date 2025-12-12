@@ -1,8 +1,8 @@
 @echo off
-REM TYQ Customized Backend Startup Script for Windows
+REM PPTer Customized Backend Startup Script for Windows
 
 echo ╔══════════════════════════════════════╗
-echo ║   🎯 TYQ Customized API Server 🎯   ║
+echo ║   🎯 PPTer Customized API Server 🎯   ║
 echo ╚══════════════════════════════════════╝
 echo.
 

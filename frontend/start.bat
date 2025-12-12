@@ -1,6 +1,6 @@
 @echo off
 echo ====================================
-echo TYQ Customized Frontend Startup
+echo PPTer Customized Frontend Startup
 echo ====================================
 echo.
 

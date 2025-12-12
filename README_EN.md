@@ -2,7 +2,7 @@
 
 <img width="256" src="https://github.com/user-attachments/assets/6f9e4cf9-912d-4faa-9d37-54fb676f547e">
 
-# 🍌 TYQ Custom Edition · AI PPT
+# 🍌 PPTer Custom Edition · AI PPT
 
 *Vibe your PPT like vibing code.*
 
