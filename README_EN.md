@@ -28,7 +28,7 @@ As a PPTer who frequently needs to make presentations, have you encountered thes
 
 | 😫 Pain Point | ✅ Custom Edition Solution |
 | --- | --- |
-| **API configuration is troublesome** - Original only supports single API, changing providers requires code changes | **Multi-API one-click switch** - Supports 10+ mainstream AI services, configure directly in frontend |
+| **High API configuration barrier** - Original requires code changes, mainly supports overseas APIs | **Zero-code config + Chinese LLMs** - Frontend wizard-style configuration, supports Qwen, Baidu Wenxin, DeepSeek and other Chinese LLMs, no VPN needed |
 | **Difficult to describe requirements** - Don't know how to write prompts for good PPT | **Structured form input** - Fill in topic, audience, style, auto-generate professional prompts |
 | **Inefficient batch modifications** - 5 out of 10 pages unsatisfactory, need to regenerate one by one | **Batch select and retry** - Check unsatisfactory pages, one-click batch regeneration |
 | **Inconsistent style** - Each page generated separately, overall style fragmented | **Unified style commands** - Apply same modifications in batch, maintain consistency |
