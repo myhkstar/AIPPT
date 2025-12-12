@@ -32,10 +32,12 @@ As a PPTer who frequently needs to make presentations, have you encountered thes
 | **Difficult to describe requirements** - Don't know how to write prompts for good PPT | **Structured form input** - Fill in topic, audience, style, auto-generate professional prompts |
 | **Inefficient batch modifications** - 5 out of 10 pages unsatisfactory, need to regenerate one by one | **Batch select and retry** - Check unsatisfactory pages, one-click batch regeneration |
 | **Inconsistent style** - Each page generated separately, overall style fragmented | **Unified style commands** - Apply same modifications in batch, maintain consistency |
+| **Page limit** - Tools like NotebookLM limit to 15-20 pages | **Unlimited pages** - Generate as many pages as you want, no restrictions |
+| **Opaque costs** - Don't know how many tokens used, hard to control expenses | **Real-time token monitoring** - Homepage shows token consumption stats, costs at a glance |
 
 ---
 
-## 🚀 Three Key Features
+## 🚀 Five Key Features
 
 ### ⚙️ 1. Multi-API Configuration - No More Code Changes
 
@@ -66,6 +68,22 @@ As a PPTer who frequently needs to make presentations, have you encountered thes
 - **Batch retry**: One-click regenerate selected pages
 - **Unified modification**: Apply same modification command to selected pages
 - **Maintain style**: Batch operations automatically inherit overall style settings
+
+### 📄 4. Unlimited Pages - Break Tool Limitations
+
+> 💬 *"NotebookLM can only generate 15 pages, but my annual summary needs 30 pages?"*
+
+- **No page limit**: Generate as many pages as you want
+- **Flexible control**: Specify page count in structured input
+- **Long document support**: Suitable for annual summaries, detailed proposals, etc.
+
+### 📊 5. Token Consumption Monitoring - Transparent Cost Control
+
+> 💬 *"Used it all day without knowing how much it cost, shocked by the bill at month end..."*
+
+- **Real-time stats**: Homepage displays cumulative token consumption
+- **Categorized stats**: Text generation and image generation calculated separately
+- **Cost estimation**: Estimate API costs based on token usage
 
 ---
 
