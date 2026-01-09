@@ -1,93 +1,60 @@
 """
-Page model
+Page model - converted to plain Python class for Firestore
 """
 import uuid
 import json
 from datetime import datetime
-from . import db
 
-
-class Page(db.Model):
+class Page:
     """
     Page model - represents a single PPT page/slide
     """
-    __tablename__ = 'pages'
-    
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = db.Column(db.String(36), db.ForeignKey('projects.id'), nullable=False)
-    order_index = db.Column(db.Integer, nullable=False)
-    part = db.Column(db.String(200), nullable=True)  # Optional section name
-    outline_content = db.Column(db.Text, nullable=True)  # JSON string
-    description_content = db.Column(db.Text, nullable=True)  # JSON string
-    generated_image_path = db.Column(db.String(500), nullable=True)
-    status = db.Column(db.String(50), nullable=False, default='DRAFT')
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    project = db.relationship('Project', back_populates='pages')
-    image_versions = db.relationship('PageImageVersion', back_populates='page', 
-                                     lazy='dynamic', cascade='all, delete-orphan',
-                                     order_by='PageImageVersion.version_number.desc()')
-    
-    def get_outline_content(self):
-        """Parse outline_content from JSON string"""
-        if self.outline_content:
-            try:
-                return json.loads(self.outline_content)
-            except json.JSONDecodeError:
-                return None
-        return None
-    
-    def set_outline_content(self, data):
-        """Set outline_content as JSON string"""
-        if data:
-            self.outline_content = json.dumps(data, ensure_ascii=False)
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id', str(uuid.uuid4()))
+        self.project_id = kwargs.get('project_id')
+        self.order_index = kwargs.get('order_index', 0)
+        self.part = kwargs.get('part')
+        self.outline_content = kwargs.get('outline_content')
+        self.description_content = kwargs.get('description_content')
+        self.generated_image_path = kwargs.get('generated_image_path')
+        self.status = kwargs.get('status', 'DRAFT')
+        
+        created_at = kwargs.get('created_at')
+        if isinstance(created_at, str):
+            self.created_at = datetime.fromisoformat(created_at)
         else:
-            self.outline_content = None
-    
-    def get_description_content(self):
-        """Parse description_content from JSON string"""
-        if self.description_content:
-            try:
-                return json.loads(self.description_content)
-            except json.JSONDecodeError:
-                return None
-        return None
-    
-    def set_description_content(self, data):
-        """Set description_content as JSON string"""
-        if data:
-            self.description_content = json.dumps(data, ensure_ascii=False)
+            self.created_at = created_at or datetime.utcnow()
+            
+        updated_at = kwargs.get('updated_at')
+        if isinstance(updated_at, str):
+            self.updated_at = datetime.fromisoformat(updated_at)
         else:
-            self.description_content = None
-    
-    def to_dict(self, include_versions=False):
-        """Convert to dictionary"""
-        # 提取文件名，兼容 Windows 和 Unix 路径分隔符
+            self.updated_at = updated_at or datetime.utcnow()
+
+    def to_dict(self):
+        """Convert to dictionary for Firestore/JSON"""
+        # Extract filename for URL compatibility
         image_filename = None
         if self.generated_image_path:
-            # 同时处理 / 和 \ 分隔符
             import os
             image_filename = os.path.basename(self.generated_image_path.replace('\\', '/'))
         
         data = {
             'page_id': self.id,
+            'id': self.id,
+            'project_id': self.project_id,
             'order_index': self.order_index,
             'part': self.part,
-            'outline_content': self.get_outline_content(),
-            'description_content': self.get_description_content(),
+            'outline_content': self.outline_content,
+            'description_content': self.description_content,
             'generated_image_url': f'/files/{self.project_id}/pages/{image_filename}' if image_filename else None,
+            'generated_image_path': self.generated_image_path,
             'status': self.status,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
+            'updated_at': self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at,
         }
-        
-        if include_versions:
-            data['image_versions'] = [v.to_dict() for v in self.image_versions.all()]
-        
         return data
-    
-    def __repr__(self):
-        return f'<Page {self.id}: {self.order_index} - {self.status}>'
 
+    @staticmethod
+    def from_dict(data):
+        return Page(**data)

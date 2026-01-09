@@ -1,67 +1,59 @@
 """
-Task model for tracking async operations
+Task model - converted to plain Python class for Firestore
 """
 import uuid
 import json
 from datetime import datetime
-from . import db
 
-
-class Task(db.Model):
+class Task:
     """
     Task model - tracks asynchronous generation tasks
     """
-    __tablename__ = 'tasks'
-    
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = db.Column(db.String(36), db.ForeignKey('projects.id'), nullable=False)
-    task_type = db.Column(db.String(50), nullable=False)  # GENERATE_DESCRIPTIONS|GENERATE_IMAGES
-    status = db.Column(db.String(50), nullable=False, default='PENDING')
-    progress = db.Column(db.Text, nullable=True)  # JSON string: {"total": 10, "completed": 5, "failed": 0}
-    error_message = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    completed_at = db.Column(db.DateTime, nullable=True)
-    
-    # Relationships
-    project = db.relationship('Project', back_populates='tasks')
-    
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id', str(uuid.uuid4()))
+        self.project_id = kwargs.get('project_id')
+        self.user_id = kwargs.get('user_id')
+        self.task_type = kwargs.get('task_type')
+        self.status = kwargs.get('status', 'PENDING')
+        self.progress = kwargs.get('progress')  # Can be dict or JSON string
+        self.error_message = kwargs.get('error_message')
+        
+        created_at = kwargs.get('created_at')
+        if isinstance(created_at, str):
+            self.created_at = datetime.fromisoformat(created_at)
+        else:
+            self.created_at = created_at or datetime.utcnow()
+            
+        completed_at = kwargs.get('completed_at')
+        if isinstance(completed_at, str):
+            self.completed_at = datetime.fromisoformat(completed_at)
+        else:
+            self.completed_at = completed_at
+
     def get_progress(self):
-        """Parse progress from JSON string"""
-        if self.progress:
+        """Parse progress if it's a string"""
+        if isinstance(self.progress, str):
             try:
                 return json.loads(self.progress)
             except json.JSONDecodeError:
                 return {"total": 0, "completed": 0, "failed": 0}
-        return {"total": 0, "completed": 0, "failed": 0}
-    
-    def set_progress(self, data):
-        """Set progress as JSON string"""
-        if data:
-            self.progress = json.dumps(data)
-        else:
-            self.progress = None
-    
-    def update_progress(self, completed=None, failed=None):
-        """Update progress incrementally"""
-        prog = self.get_progress()
-        if completed is not None:
-            prog['completed'] = completed
-        if failed is not None:
-            prog['failed'] = failed
-        self.set_progress(prog)
-    
+        return self.progress or {"total": 0, "completed": 0, "failed": 0}
+
     def to_dict(self):
-        """Convert to dictionary"""
+        """Convert to dictionary for Firestore/JSON"""
         return {
             'task_id': self.id,
+            'id': self.id,
+            'project_id': self.project_id,
+            'user_id': self.user_id,
             'task_type': self.task_type,
             'status': self.status,
             'progress': self.get_progress(),
             'error_message': self.error_message,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
+            'completed_at': self.completed_at.isoformat() if isinstance(self.completed_at, datetime) else self.completed_at,
         }
-    
-    def __repr__(self):
-        return f'<Task {self.id}: {self.task_type} - {self.status}>'
 
+    @staticmethod
+    def from_dict(data):
+        return Task(**data)

@@ -1,0 +1,46 @@
+import os
+import firebase_admin
+from firebase_admin import credentials, firestore, storage
+import logging
+
+
+def init_firebase():
+    """Initialize Firebase Admin SDK"""
+    if not firebase_admin._apps:
+        # Try to get credentials from environment variable (JSON string)
+        cred_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+
+        if cred_json:
+            import json
+
+            cred_dict = json.loads(cred_json)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(
+                cred, {"storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET")}
+            )
+            logging.info("Firebase initialized with service account from environment")
+        else:
+            # Fallback to default credentials (works on Cloud Run)
+            try:
+                firebase_admin.initialize_app(
+                    options={"storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET")}
+                )
+                logging.info("Firebase initialized with default credentials")
+            except Exception as e:
+                logging.error(f"Failed to initialize Firebase: {e}")
+                # For local dev without Firebase, we might want to mock it or fail fast
+                raise e
+
+    return firestore.client(), storage.bucket()
+
+
+# Global clients
+db = None
+bucket = None
+
+
+def get_firebase():
+    global db, bucket
+    if db is None or bucket is None:
+        db, bucket = init_firebase()
+    return db, bucket

@@ -1,325 +1,173 @@
 """
-File Service - handles all file operations
+File Service - handles all file operations using Firebase Storage
 """
 import os
-import uuid
+import io
 from pathlib import Path
 from typing import Optional
 from werkzeug.utils import secure_filename
 from PIL import Image
-
+from firebase_config import get_firebase
+import logging
 
 class FileService:
-    """Service for file management"""
+    """Service for file management using Firebase Storage"""
     
-    def __init__(self, upload_folder: str):
+    def __init__(self, upload_folder: str = None):
         """Initialize file service"""
-        self.upload_folder = Path(upload_folder)
-        self.upload_folder.mkdir(exist_ok=True, parents=True)
+        # upload_folder is kept for compatibility but we use Firebase
+        _, self.bucket = get_firebase()
     
-    def _get_project_dir(self, project_id: str) -> Path:
-        """Get project directory"""
-        project_dir = self.upload_folder / project_id
-        project_dir.mkdir(exist_ok=True, parents=True)
-        return project_dir
-    
-    def _get_template_dir(self, project_id: str) -> Path:
-        """Get template directory for project"""
-        template_dir = self._get_project_dir(project_id) / "template"
-        template_dir.mkdir(exist_ok=True, parents=True)
-        return template_dir
-    
-    def _get_pages_dir(self, project_id: str) -> Path:
-        """Get pages directory for project"""
-        pages_dir = self._get_project_dir(project_id) / "pages"
-        pages_dir.mkdir(exist_ok=True, parents=True)
-        return pages_dir
-
-    def _get_exports_dir(self, project_id: str) -> Path:
-        """Get exports directory for project (for generated PPT/PDF files)"""
-        exports_dir = self._get_project_dir(project_id) / "exports"
-        exports_dir.mkdir(exist_ok=True, parents=True)
-        return exports_dir
-
-    def _get_materials_dir(self, project_id: str) -> Path:
-        """Get materials directory for project (for standalone generated assets)"""
-        materials_dir = self._get_project_dir(project_id) / "materials"
-        materials_dir.mkdir(exist_ok=True, parents=True)
-        return materials_dir
+    def _get_blob_path(self, project_id: str, file_type: str, filename: str) -> str:
+        """Get blob path in Firebase Storage"""
+        return f"projects/{project_id}/{file_type}/{filename}"
     
     def save_template_image(self, file, project_id: str) -> str:
-        """
-        Save template image file
-        
-        Args:
-            file: FileStorage object from Flask request
-            project_id: Project ID
-        
-        Returns:
-            Relative file path from upload folder
-        """
-        template_dir = self._get_template_dir(project_id)
-        
-        # Secure filename and add unique suffix
+        """Save template image to Firebase Storage"""
         original_filename = secure_filename(file.filename)
         ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'png'
         filename = f"template.{ext}"
+        blob_path = self._get_blob_path(project_id, "template", filename)
         
-        filepath = template_dir / filename
-        file.save(str(filepath))
+        blob = self.bucket.blob(blob_path)
+        # Upload from file stream
+        file.seek(0)
+        blob.upload_from_file(file, content_type=f"image/{ext}")
         
-        # Return relative path
-        return str(filepath.relative_to(self.upload_folder))
+        return blob_path
     
     def save_generated_image(self, image: Image.Image, project_id: str, 
                            page_id: str, image_format: str = 'PNG', 
                            version_number: int = None) -> str:
-        """
-        Save generated image with version support
-        
-        Args:
-            image: PIL Image object
-            project_id: Project ID
-            page_id: Page ID
-            image_format: Image format (PNG, JPEG, etc.)
-            version_number: Optional version number. If None, uses timestamp-based naming
-        
-        Returns:
-            Relative file path from upload folder
-        """
-        pages_dir = self._get_pages_dir(project_id)
-        
-        # Use lowercase extension
+        """Save generated image to Firebase Storage"""
         ext = image_format.lower()
-        
-        # Generate filename with version number or timestamp
         if version_number is not None:
             filename = f"{page_id}_v{version_number}.{ext}"
         else:
-            # Use timestamp for unique filename
             import time
-            timestamp = int(time.time() * 1000)  # milliseconds
+            timestamp = int(time.time() * 1000)
             filename = f"{page_id}_{timestamp}.{ext}"
+            
+        blob_path = self._get_blob_path(project_id, "pages", filename)
+        blob = self.bucket.blob(blob_path)
         
-        filepath = pages_dir / filename
+        # Save PIL image to byte stream
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format=image_format)
+        img_byte_arr.seek(0)
         
-        # Save image - format is determined by file extension or explicitly specified
-        # Some PIL Image objects may not support format parameter, so we use extension
-        image.save(str(filepath))
+        blob.upload_from_file(img_byte_arr, content_type=f"image/{ext}")
         
-        # Return relative path
-        return str(filepath.relative_to(self.upload_folder))
+        return blob_path
 
     def save_material_image(self, image: Image.Image, project_id: Optional[str],
-                            image_format: str = 'PNG') -> str:
-        """
-        Save standalone generated material image (not bound to a specific page)
-
-        Args:
-            image: PIL Image object
-            project_id: Project ID (None for global materials)
-            image_format: Image format (PNG, JPEG, etc.)
-
-        Returns:
-            Relative file path from upload folder
-        """
-        # Handle global materials (project_id is None)
-        if project_id is None:
-            materials_dir = self.upload_folder / "materials"
-            materials_dir.mkdir(exist_ok=True, parents=True)
-        else:
-            materials_dir = self._get_materials_dir(project_id)
-
-        # Use lowercase extension
+                              image_format: str = 'PNG') -> str:
+        """Save material image to Firebase Storage from PIL Image"""
         ext = image_format.lower()
-
-        # Generate unique filename
         import time
-        timestamp = int(time.time() * 1000)  # milliseconds
+        timestamp = int(time.time() * 1000)
         filename = f"material_{timestamp}.{ext}"
 
-        filepath = materials_dir / filename
+        if project_id:
+            blob_path = self._get_blob_path(project_id, "materials", filename)
+        else:
+            blob_path = f"global_materials/{filename}"
 
-        # Save image
-        image.save(str(filepath))
+        blob = self.bucket.blob(blob_path)
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format=image_format)
+        img_byte_arr.seek(0)
 
-        # Return relative path
-        return str(filepath.relative_to(self.upload_folder))
-    
-    def delete_page_image_version(self, image_path: str) -> bool:
-        """
-        Delete a specific image version file
-        
-        Args:
-            image_path: Relative path to the image file
-        
-        Returns:
-            True if deleted successfully
-        """
-        filepath = self.upload_folder / image_path
-        if filepath.exists() and filepath.is_file():
-            filepath.unlink()
-            return True
-        return False
+        blob.upload_from_file(img_byte_arr, content_type=f"image/{ext}")
+
+        return blob_path
+
+    def save_material_file(self, file, project_id: Optional[str]) -> str:
+        """Save material file to Firebase Storage from file stream"""
+        original_filename = secure_filename(file.filename)
+        ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'png'
+
+        import time
+        timestamp = int(time.time() * 1000)
+        filename = f"material_{timestamp}.{ext}"
+
+        if project_id:
+            blob_path = self._get_blob_path(project_id, "materials", filename)
+        else:
+            blob_path = f"global_materials/{filename}"
+
+        blob = self.bucket.blob(blob_path)
+        file.seek(0)
+        blob.upload_from_file(file, content_type=f"image/{ext}")
+
+        return blob_path
     
     def get_file_url(self, project_id: Optional[str], file_type: str, filename: str) -> str:
-        """
-        Generate file URL for frontend access
-        
-        Args:
-            project_id: Project ID (None for global materials)
-            file_type: 'template', 'pages', or 'materials'
-            filename: File name
-        
-        Returns:
-            URL path for file access
-        """
-        if project_id is None:
-            # Global materials
-            return f"/files/materials/{filename}"
-        return f"/files/{project_id}/{file_type}/{filename}"
-    
-    def get_absolute_path(self, relative_path: str) -> str:
-        """
-        Get absolute file path from relative path
-        
-        Args:
-            relative_path: Relative path from upload folder
-        
-        Returns:
-            Absolute file path
-        """
-        return str(self.upload_folder / relative_path)
-    
-    def delete_template(self, project_id: str) -> bool:
-        """
-        Delete template for project
-        
-        Args:
-            project_id: Project ID
-        
-        Returns:
-            True if deleted successfully
-        """
-        template_dir = self._get_template_dir(project_id)
-        
-        # Delete all files in template directory
-        for file in template_dir.iterdir():
-            if file.is_file():
-                file.unlink()
-        
-        return True
-    
-    def delete_page_image(self, project_id: str, page_id: str) -> bool:
-        """
-        Delete page image
-        
-        Args:
-            project_id: Project ID
-            page_id: Page ID
-        
-        Returns:
-            True if deleted successfully
-        """
-        pages_dir = self._get_pages_dir(project_id)
-        
-        # Find and delete page image (any extension)
-        for file in pages_dir.glob(f"{page_id}.*"):
-            if file.is_file():
-                file.unlink()
-        
-        return True
+        """Generate signed URL for frontend access"""
+        if project_id:
+            blob_path = self._get_blob_path(project_id, file_type, filename)
+        else:
+            blob_path = f"global_materials/{filename}"
+            
+        blob = self.bucket.blob(blob_path)
+        # Generate a signed URL that expires in 1 hour
+        return blob.generate_signed_url(expiration=3600)
     
     def delete_project_files(self, project_id: str) -> bool:
-        """
-        Delete all files for a project
-        
-        Args:
-            project_id: Project ID
-        
-        Returns:
-            True if deleted successfully
-        """
-        import shutil
-        project_dir = self._get_project_dir(project_id)
-        
-        if project_dir.exists():
-            shutil.rmtree(project_dir)
-        
+        """Delete all files for a project in Firebase Storage"""
+        prefix = f"projects/{project_id}/"
+        blobs = self.bucket.list_blobs(prefix=prefix)
+        for blob in blobs:
+            blob.delete()
         return True
-    
-    def file_exists(self, relative_path: str) -> bool:
-        """Check if file exists"""
-        filepath = self.upload_folder / relative_path
-        return filepath.exists() and filepath.is_file()
-    
-    def get_template_path(self, project_id: str) -> Optional[str]:
-        """
-        Get template file path for project
-        
-        Args:
-            project_id: Project ID
-        
-        Returns:
-            Absolute path to template file or None
-        """
-        template_dir = self._get_template_dir(project_id)
-        
-        # Find template file
-        for file in template_dir.iterdir():
-            if file.is_file() and file.stem == 'template':
-                return str(file)
-        
-        return None
-    
-    def _get_user_templates_dir(self) -> Path:
-        """Get user templates directory"""
-        templates_dir = self.upload_folder / "user-templates"
-        templates_dir.mkdir(exist_ok=True, parents=True)
-        return templates_dir
-    
+
+    def delete_template(self, project_id: str) -> bool:
+        """Delete template for project"""
+        prefix = f"projects/{project_id}/template/"
+        blobs = self.bucket.list_blobs(prefix=prefix)
+        for blob in blobs:
+            blob.delete()
+        return True
+
+    def delete_page_image(self, project_id: str, page_id: str) -> bool:
+        """Delete page image"""
+        prefix = f"projects/{project_id}/pages/{page_id}"
+        blobs = self.bucket.list_blobs(prefix=prefix)
+        for blob in blobs:
+            blob.delete()
+        return True
+
     def save_user_template(self, file, template_id: str) -> str:
-        """
-        Save user template image file
-        
-        Args:
-            file: FileStorage object from Flask request
-            template_id: Template ID
-        
-        Returns:
-            Relative file path from upload folder
-        """
-        templates_dir = self._get_user_templates_dir()
-        template_dir = templates_dir / template_id
-        template_dir.mkdir(exist_ok=True, parents=True)
-        
-        # Secure filename and preserve extension
+        """Save user template to Firebase Storage"""
         original_filename = secure_filename(file.filename)
         ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'png'
         filename = f"template.{ext}"
+        blob_path = f"user-templates/{template_id}/{filename}"
         
-        filepath = template_dir / filename
-        file.save(str(filepath))
+        blob = self.bucket.blob(blob_path)
+        file.seek(0)
+        blob.upload_from_file(file, content_type=f"image/{ext}")
         
-        # Return relative path
-        return str(filepath.relative_to(self.upload_folder))
-    
+        return blob_path
+
     def delete_user_template(self, template_id: str) -> bool:
-        """
-        Delete user template
-        
-        Args:
-            template_id: Template ID
-        
-        Returns:
-            True if deleted successfully
-        """
-        import shutil
-        templates_dir = self._get_user_templates_dir()
-        template_dir = templates_dir / template_id
-        
-        if template_dir.exists():
-            shutil.rmtree(template_dir)
-        
+        """Delete user template"""
+        prefix = f"user-templates/{template_id}/"
+        blobs = self.bucket.list_blobs(prefix=prefix)
+        for blob in blobs:
+            blob.delete()
         return True
-    
+
+    def get_absolute_path(self, relative_path: str) -> str:
+        """
+        Firebase Storage doesn't have absolute local paths.
+        This might be used for temporary file processing.
+        We'll return a placeholder or download to a temp file if needed.
+        """
+        # For now, return the relative path (blob path)
+        return relative_path
+
+    def file_exists(self, blob_path: str) -> bool:
+        """Check if blob exists"""
+        blob = self.bucket.blob(blob_path)
+        return blob.exists()

@@ -1,34 +1,52 @@
 """
-User Template model - stores user-uploaded templates
+User Template model - converted to plain Python class for Firestore
 """
 import uuid
 from datetime import datetime
-from . import db
 
-
-class UserTemplate(db.Model):
+class UserTemplate:
     """
     User Template model - represents a user-uploaded template
     """
-    __tablename__ = 'user_templates'
-    
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = db.Column(db.String(200), nullable=True)  # Optional template name
-    file_path = db.Column(db.String(500), nullable=False)
-    file_size = db.Column(db.Integer, nullable=True)  # File size in bytes
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id', str(uuid.uuid4()))
+        self.user_id = kwargs.get('user_id')
+        self.name = kwargs.get('name')
+        self.file_path = kwargs.get('file_path')
+        self.file_size = kwargs.get('file_size')
+        
+        created_at = kwargs.get('created_at')
+        if isinstance(created_at, str):
+            self.created_at = datetime.fromisoformat(created_at)
+        else:
+            self.created_at = created_at or datetime.utcnow()
+            
+        updated_at = kwargs.get('updated_at')
+        if isinstance(updated_at, str):
+            self.updated_at = datetime.fromisoformat(updated_at)
+        else:
+            self.updated_at = updated_at or datetime.utcnow()
+
     def to_dict(self):
-        """Convert to dictionary"""
+        """Convert to dictionary for Firestore/JSON"""
+        # Extract filename for URL compatibility
+        filename = None
+        if self.file_path:
+            import os
+            filename = os.path.basename(self.file_path.replace('\\', '/'))
+            
         return {
             'template_id': self.id,
+            'id': self.id,
+            'user_id': self.user_id,
             'name': self.name,
-            'template_image_url': f'/files/user-templates/{self.id}/{self.file_path.split("/")[-1]}',
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'template_image_url': f'/files/user-templates/{self.id}/{filename}' if filename else None,
+            'file_path': self.file_path,
+            'file_size': self.file_size,
+            'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
+            'updated_at': self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at,
         }
-    
-    def __repr__(self):
-        return f'<UserTemplate {self.id}: {self.name or "Unnamed"}>'
 
+    @staticmethod
+    def from_dict(data):
+        return UserTemplate(**data)

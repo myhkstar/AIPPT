@@ -1,154 +1,173 @@
 """
 Export Controller - handles file export endpoints
 """
-from flask import Blueprint, request, current_app
-from models import db, Project, Page
-from utils import error_response, not_found, bad_request, success_response
-from services import ExportService, FileService
 import os
-import io
+import logging
+import tempfile
+import shutil
+from flask import Blueprint, request, current_app
+from utils import error_response, not_found, bad_request, success_response
+from utils.auth import auth_required
+from services import ExportService, FileService
+from services.firestore_service import FirestoreService
+
+logger = logging.getLogger(__name__)
 
 export_bp = Blueprint('export', __name__, url_prefix='/api/projects')
+firestore_service = FirestoreService()
 
 
 @export_bp.route('/<project_id>/export/pptx', methods=['GET'])
+@auth_required
 def export_pptx(project_id):
     """
     GET /api/projects/{project_id}/export/pptx?filename=... - Export PPTX
-    
-    Returns:
-        JSON with download URL, e.g.
-        {
-            "success": true,
-            "data": {
-                "download_url": "/files/{project_id}/exports/xxx.pptx",
-                "download_url_absolute": "http://host:port/files/{project_id}/exports/xxx.pptx"
-            }
-        }
     """
     try:
-        project = Project.query.get(project_id)
-        
+        user_id = request.user_id
+        project = firestore_service.get_project(project_id, user_id)
+
         if not project:
             return not_found('Project')
-        
-        # Get all completed pages
-        pages = Page.query.filter_by(project_id=project_id).order_by(Page.order_index).all()
-        
+
+        # Get all pages
+        pages = firestore_service.get_pages(project_id, user_id)
+
         if not pages:
             return bad_request("No pages found for project")
-        
-        # Get image paths
-        from flask import current_app
-        file_service = FileService(current_app.config['UPLOAD_FOLDER'])
-        
-        image_paths = []
-        for page in pages:
-            if page.generated_image_path:
-                abs_path = file_service.get_absolute_path(page.generated_image_path)
-                image_paths.append(abs_path)
-        
-        if not image_paths:
-            return bad_request("No generated images found for project")
-        
-        # Determine export directory and filename
-        file_service = FileService(current_app.config['UPLOAD_FOLDER'])
-        exports_dir = file_service._get_exports_dir(project_id)
-        
-        # Get filename from query params or use default
-        filename = request.args.get('filename', f'presentation_{project_id}.pptx')
-        if not filename.endswith('.pptx'):
-            filename += '.pptx'
 
-        output_path = os.path.join(exports_dir, filename)
+        # Initialize file service
+        file_service = FileService()
 
-        # Generate PPTX file on disk
-        ExportService.create_pptx_from_images(image_paths, output_file=output_path)
+        # Create temp directory for images and output
+        temp_dir = tempfile.mkdtemp()
+        try:
+            image_paths = []
+            for page in pages:
+                blob_path = page.get('generated_image_path')
+                if blob_path:
+                    # Download image to temp path
+                    filename = blob_path.split('/')[-1]
+                    local_img_path = os.path.join(temp_dir, filename)
+                    blob = file_service.bucket.blob(blob_path)
+                    blob.download_to_filename(local_img_path)
+                    image_paths.append(local_img_path)
 
-        # Build download URLs
-        download_path = f"/files/{project_id}/exports/{filename}"
-        base_url = request.url_root.rstrip("/")
-        download_url_absolute = f"{base_url}{download_path}"
+            if not image_paths:
+                return bad_request("No generated images found for project")
 
-        return success_response(
-            data={
-                "download_url": download_path,
-                "download_url_absolute": download_url_absolute,
-            },
-            message="Export PPTX task created"
-        )
-    
+            # Get filename
+            filename = request.args.get(
+                'filename', f'presentation_{project_id}.pptx'
+            )
+            if not filename.endswith('.pptx'):
+                filename += '.pptx'
+
+            output_path = os.path.join(temp_dir, filename)
+
+            # Generate PPTX file
+            ExportService.create_pptx_from_images(
+                image_paths, output_file=output_path
+            )
+
+            # Upload to Firebase Storage
+            export_blob_path = f"projects/{project_id}/exports/{filename}"
+            blob = file_service.bucket.blob(export_blob_path)
+            blob.upload_from_filename(output_path)
+
+            # Get signed URL
+            url = file_service.get_file_url(project_id, "exports", filename)
+
+            return success_response(
+                data={
+                    "download_url": url,
+                    "download_url_absolute": url,
+                },
+                message="Export PPTX completed"
+            )
+
+        finally:
+            # Cleanup
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
     except Exception as e:
+        logger.error(f"export_pptx failed: {str(e)}", exc_info=True)
         return error_response('SERVER_ERROR', str(e), 500)
 
 
 @export_bp.route('/<project_id>/export/pdf', methods=['GET'])
+@auth_required
 def export_pdf(project_id):
     """
     GET /api/projects/{project_id}/export/pdf?filename=... - Export PDF
-    
-    Returns:
-        JSON with download URL, e.g.
-        {
-            "success": true,
-            "data": {
-                "download_url": "/files/{project_id}/exports/xxx.pdf",
-                "download_url_absolute": "http://host:port/files/{project_id}/exports/xxx.pdf"
-            }
-        }
     """
     try:
-        project = Project.query.get(project_id)
-        
+        user_id = request.user_id
+        project = firestore_service.get_project(project_id, user_id)
+
         if not project:
             return not_found('Project')
-        
-        # Get all completed pages
-        pages = Page.query.filter_by(project_id=project_id).order_by(Page.order_index).all()
-        
+
+        # Get all pages
+        pages = firestore_service.get_pages(project_id, user_id)
+
         if not pages:
             return bad_request("No pages found for project")
-        
-        # Get image paths
-        from flask import current_app
-        file_service = FileService(current_app.config['UPLOAD_FOLDER'])
-        
-        image_paths = []
-        for page in pages:
-            if page.generated_image_path:
-                abs_path = file_service.get_absolute_path(page.generated_image_path)
-                image_paths.append(abs_path)
-        
-        if not image_paths:
-            return bad_request("No generated images found for project")
-        
-        # Determine export directory and filename
-        file_service = FileService(current_app.config['UPLOAD_FOLDER'])
-        exports_dir = file_service._get_exports_dir(project_id)
 
-        # Get filename from query params or use default
-        filename = request.args.get('filename', f'presentation_{project_id}.pdf')
-        if not filename.endswith('.pdf'):
-            filename += '.pdf'
+        # Initialize file service
+        file_service = FileService()
 
-        output_path = os.path.join(exports_dir, filename)
+        # Create temp directory for images and output
+        temp_dir = tempfile.mkdtemp()
+        try:
+            image_paths = []
+            for page in pages:
+                blob_path = page.get('generated_image_path')
+                if blob_path:
+                    # Download image to temp path
+                    filename = blob_path.split('/')[-1]
+                    local_img_path = os.path.join(temp_dir, filename)
+                    blob = file_service.bucket.blob(blob_path)
+                    blob.download_to_filename(local_img_path)
+                    image_paths.append(local_img_path)
 
-        # Generate PDF file on disk
-        ExportService.create_pdf_from_images(image_paths, output_file=output_path)
+            if not image_paths:
+                return bad_request("No generated images found for project")
 
-        # Build download URLs
-        download_path = f"/files/{project_id}/exports/{filename}"
-        base_url = request.url_root.rstrip("/")
-        download_url_absolute = f"{base_url}{download_path}"
+            # Get filename
+            filename = request.args.get(
+                'filename', f'presentation_{project_id}.pdf'
+            )
+            if not filename.endswith('.pdf'):
+                filename += '.pdf'
 
-        return success_response(
-            data={
-                "download_url": download_path,
-                "download_url_absolute": download_url_absolute,
-            },
-            message="Export PDF task created"
-        )
-    
+            output_path = os.path.join(temp_dir, filename)
+
+            # Generate PDF file
+            ExportService.create_pdf_from_images(
+                image_paths, output_file=output_path
+            )
+
+            # Upload to Firebase Storage
+            export_blob_path = f"projects/{project_id}/exports/{filename}"
+            blob = file_service.bucket.blob(export_blob_path)
+            blob.upload_from_filename(output_path)
+
+            # Get signed URL
+            url = file_service.get_file_url(project_id, "exports", filename)
+
+            return success_response(
+                data={
+                    "download_url": url,
+                    "download_url_absolute": url,
+                },
+                message="Export PDF completed"
+            )
+
+        finally:
+            # Cleanup
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
     except Exception as e:
+        logger.error(f"export_pdf failed: {str(e)}", exc_info=True)
         return error_response('SERVER_ERROR', str(e), 500)
-

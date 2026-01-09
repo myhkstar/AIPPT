@@ -5,21 +5,27 @@ import os
 import logging
 import re
 import uuid
-from flask import Blueprint, request, current_app
-from werkzeug.utils import secure_filename
-from pathlib import Path
-from config import Config
+import threading
+import tempfile
+import shutil
 from datetime import datetime
 from urllib.parse import unquote
-import threading
+from pathlib import Path
+from flask import Blueprint, request, current_app
+from werkzeug.utils import secure_filename
 
-from models import db, ReferenceFile, Project
-from utils.response import success_response, error_response, bad_request, not_found
+from utils.response import (
+    success_response, error_response, bad_request, not_found
+)
+from utils.auth import auth_required
 from services.file_parser_service import FileParserService
+from services.firestore_service import FirestoreService
+from services.file_service import FileService
 
 logger = logging.getLogger(__name__)
 
 reference_file_bp = Blueprint('reference_file', __name__)
+firestore_service = FirestoreService()
 
 
 def _allowed_file(filename: str, allowed_extensions: set) -> bool:
@@ -35,398 +41,399 @@ def _get_file_type(filename: str) -> str:
     return 'unknown'
 
 
-def _parse_file_async(file_id: str, file_path: str, filename: str, app):
+def _parse_file_async(file_id: str, user_id: str, blob_path: str,
+                      filename: str, config: dict):
     """
     Parse file asynchronously in background
-    
-    Args:
-        file_id: Reference file ID
-        file_path: Path to the uploaded file
-        filename: Original filename
-        app: Flask app instance (for app context)
     """
-    with app.app_context():
-        try:
-            reference_file = ReferenceFile.query.get(file_id)
-            if not reference_file:
-                logger.error(f"Reference file {file_id} not found")
-                return
-            
-            # Update status to parsing
-            reference_file.parse_status = 'parsing'
-            db.session.commit()
-            
-            # Initialize parser service
-            parser = FileParserService(
-                mineru_token=current_app.config['MINERU_TOKEN'],
-                mineru_api_base=current_app.config['MINERU_API_BASE'],
-                google_api_key=current_app.config['GOOGLE_API_KEY'],
-                google_api_base=current_app.config['GOOGLE_API_BASE'],
-                image_caption_model=current_app.config['IMAGE_CAPTION_MODEL']
-            )
-            
-            # Parse file
-            logger.info(f"Starting to parse file: {filename}")
-            batch_id, markdown_content, error_message, failed_image_count = parser.parse_file(file_path, filename)
-            
-            # Update database
-            reference_file.mineru_batch_id = batch_id
-            if error_message:
-                reference_file.parse_status = 'failed'
-                reference_file.error_message = error_message
-                logger.error(f"File parsing failed: {error_message}")
+    try:
+        # Update status to parsing
+        firestore_service.update_reference_file(file_id, {
+            'parse_status': 'parsing',
+            'updated_at': datetime.utcnow()
+        }, user_id)
+
+        # Download file from Firebase Storage to local temp path
+        file_service = FileService()
+        temp_dir = tempfile.mkdtemp()
+        local_path = os.path.join(temp_dir, filename)
+
+        blob = file_service.bucket.blob(blob_path)
+        blob.download_to_filename(local_path)
+
+        # Initialize parser service
+        parser = FileParserService(
+            mineru_token=config['MINERU_TOKEN'],
+            mineru_api_base=config['MINERU_API_BASE'],
+            google_api_key=config['GOOGLE_API_KEY'],
+            google_api_base=config['GOOGLE_API_BASE'],
+            image_caption_model=config['IMAGE_CAPTION_MODEL']
+        )
+
+        # Parse file
+        logger.info(f"Starting to parse file: {filename}")
+        batch_id, markdown_content, error_message, failed_image_count = \
+            parser.parse_file(local_path, filename)
+
+        # Update Firestore
+        update_data = {
+            'mineru_batch_id': batch_id,
+            'updated_at': datetime.utcnow()
+        }
+
+        if error_message:
+            update_data['parse_status'] = 'failed'
+            update_data['error_message'] = error_message
+            logger.error(f"File parsing failed: {error_message}")
+        else:
+            update_data['parse_status'] = 'completed'
+            update_data['markdown_content'] = markdown_content
+            if failed_image_count > 0:
+                logger.warning(f"File parsing completed: {filename}, "
+                               f"but {failed_image_count} images failed "
+                               f"to generate captions")
             else:
-                reference_file.parse_status = 'completed'
-                reference_file.markdown_content = markdown_content
-                if failed_image_count > 0:
-                    logger.warning(f"File parsing completed: {filename}, but {failed_image_count} images failed to generate captions")
-                else:
-                    logger.info(f"File parsing completed: {filename}")
-            
-            reference_file.updated_at = datetime.utcnow()
-            db.session.commit()
-            
-        except Exception as e:
-            logger.error(f"Error in async file parsing: {str(e)}", exc_info=True)
-            try:
-                reference_file = ReferenceFile.query.get(file_id)
-                if reference_file:
-                    reference_file.parse_status = 'failed'
-                    reference_file.error_message = f"Parsing error: {str(e)}"
-                    reference_file.updated_at = datetime.utcnow()
-                    db.session.commit()
-            except Exception as db_error:
-                logger.error(f"Failed to update error status: {str(db_error)}")
+                logger.info(f"File parsing completed: {filename}")
+
+        firestore_service.update_reference_file(file_id, update_data, user_id)
+
+        # Cleanup
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    except Exception as e:
+        logger.error(f"Error in async file parsing: {str(e)}", exc_info=True)
+        try:
+            firestore_service.update_reference_file(file_id, {
+                'parse_status': 'failed',
+                'error_message': f"Parsing error: {str(e)}",
+                'updated_at': datetime.utcnow()
+            }, user_id)
+        except Exception as db_error:
+            logger.error(f"Failed to update error status: {str(db_error)}")
 
 
 @reference_file_bp.route('/upload', methods=['POST'])
+@auth_required
 def upload_reference_file():
     """
     POST /api/reference-files/upload - Upload a reference file
-    
-    Supports multipart/form-data:
-    - file: The file to upload (required)
-    - project_id: Project ID to associate with (optional, 'none' for global files)
-    
-    Returns:
-        Reference file information with status
     """
     try:
+        user_id = request.user_id
+
         # Check if file is in request
         if 'file' not in request.files:
             return bad_request("No file provided")
-        
+
         file = request.files['file']
-        
-        # Get filename - handle encoding issues with non-ASCII characters
+
+        # Get filename
         original_filename = file.filename
         if not original_filename or original_filename == '':
-            # Try to get filename from Content-Disposition header
             content_disposition = request.headers.get('Content-Disposition', '')
             if content_disposition:
-                filename_match = re.search(r'filename[^;=\n]*=(([\'"]).*?\2|[^;\n]*)', content_disposition)
+                filename_match = re.search(
+                    r'filename[^;=\n]*=(([\'"]).*?\2|[^;\n]*)',
+                    content_disposition
+                )
                 if filename_match:
                     original_filename = filename_match.group(1).strip('"\'')
-                    # Decode if URL encoded
                     try:
                         original_filename = unquote(original_filename)
                     except:
                         pass
-        
+
         if not original_filename or original_filename == '':
-            return bad_request("No file selected or filename could not be determined")
-        
+            return bad_request("No file selected or filename "
+                               "could not be determined")
+
         logger.info(f"Received file upload: {original_filename}")
-        
+
         # Check file extension
-        
-        allowed_extensions = current_app.config.get('ALLOWED_REFERENCE_FILE_EXTENSIONS', Config.ALLOWED_REFERENCE_FILE_EXTENSIONS)
+        allowed_extensions = current_app.config.get(
+            'ALLOWED_REFERENCE_FILE_EXTENSIONS',
+            {'.pdf', '.docx', '.pptx', '.txt', '.md', '.xlsx', '.csv'}
+        )
         if not _allowed_file(original_filename, allowed_extensions):
-            return bad_request(f"File type not allowed. Allowed types: {', '.join(allowed_extensions)}")
-        
+            return bad_request(f"File type not allowed. "
+                               f"Allowed types: {', '.join(allowed_extensions)}")
+
         # Get project_id (optional)
         project_id = request.form.get('project_id')
         if project_id == 'none' or not project_id:
             project_id = None
         else:
             # Verify project exists
-            project = Project.query.get(project_id)
+            project = firestore_service.get_project(project_id, user_id)
             if not project:
                 return not_found('Project')
-        
-        # Secure filename for filesystem (but keep original for database)
-        # secure_filename removes non-ASCII chars, so we need to handle Chinese characters
+
+        # Secure filename
         filename = secure_filename(original_filename)
-        
-        # If secure_filename removed everything (e.g., all Chinese chars), use a fallback
         if not filename or filename == '':
-            # Extract extension from original filename
             ext = _get_file_type(original_filename)
             if ext == 'unknown':
                 ext = 'file'
             filename = f"file_{uuid.uuid4().hex[:8]}.{ext}"
-            logger.warning(f"Original filename '{original_filename}' was sanitized to '{filename}'")
-        
-        # Create upload directory structure
-        upload_folder = current_app.config['UPLOAD_FOLDER']
-        reference_files_dir = Path(upload_folder) / 'reference_files'
-        reference_files_dir.mkdir(parents=True, exist_ok=True)
-        
+
+        # Save to Firebase Storage
+        file_service = FileService()
         # Generate unique filename to avoid conflicts
         unique_id = str(uuid.uuid4())[:8]
-        file_type = _get_file_type(original_filename)  # Use original filename for type detection
         unique_filename = f"{unique_id}_{filename}"
-        file_path = reference_files_dir / unique_filename
-        
-        # Save file
-        file.save(str(file_path))
-        file_size = os.path.getsize(file_path)
-        
-        # Create database record
-        reference_file = ReferenceFile(
-            project_id=project_id,
-            filename=original_filename,
-            file_path=str(file_path.relative_to(upload_folder)),
-            file_size=file_size,
-            file_type=file_type,
-            parse_status='pending'
-        )
-        
-        db.session.add(reference_file)
-        db.session.commit()
-        
-        logger.info(f"File uploaded: {original_filename} (ID: {reference_file.id})")
-        
-        # Lazy parsing: 不立即解析，等待用户选择确定后再解析
-        # 解析将在用户选择文件并确认时触发
-        
-        return success_response({'file': reference_file.to_dict()})
-        
+
+        if project_id:
+            blob_path = f"projects/{project_id}/reference_files/{unique_filename}"
+        else:
+            blob_path = f"users/{user_id}/reference_files/{unique_filename}"
+
+        blob = file_service.bucket.blob(blob_path)
+        file.seek(0)
+        blob.upload_from_file(file)
+
+        file_size = blob.size
+        file_type = _get_file_type(original_filename)
+
+        # Create Firestore record
+        ref_data = {
+            'project_id': project_id,
+            'user_id': user_id,
+            'filename': original_filename,
+            'file_path': blob_path,  # Use blob path as file_path
+            'file_size': file_size,
+            'file_type': file_type,
+            'parse_status': 'pending'
+        }
+
+        ref_id = firestore_service.create_reference_file(ref_data, user_id)
+
+        logger.info(f"File uploaded: {original_filename} (ID: {ref_id})")
+
+        # Get updated record
+        ref_file = firestore_service.get_reference_file(ref_id, user_id)
+
+        return success_response({'file': ref_file})
+
     except Exception as e:
-        logger.error(f"Error uploading reference file: {str(e)}", exc_info=True)
+        logger.error(f"Error uploading reference file: {str(e)}",
+                     exc_info=True)
         return error_response('SERVER_ERROR', str(e), 500)
 
 
 @reference_file_bp.route('/<file_id>', methods=['GET'])
+@auth_required
 def get_reference_file(file_id):
     """
     GET /api/reference-files/<file_id> - Get reference file information
-    
-    Returns:
-        Reference file information including parse status
     """
     try:
-        reference_file = ReferenceFile.query.get(file_id)
+        user_id = request.user_id
+        reference_file = firestore_service.get_reference_file(file_id, user_id)
         if not reference_file:
             return not_found('Reference file')
-        
-        # 单个文件查询时包含内容和失败计数（会在 to_dict 中根据状态判断是否计算）
-        return success_response({'file': reference_file.to_dict(include_content=True, include_failed_count=True)})
-        
+
+        return success_response({'file': reference_file})
+
     except Exception as e:
         logger.error(f"Error getting reference file: {str(e)}", exc_info=True)
         return error_response('SERVER_ERROR', str(e), 500)
 
 
 @reference_file_bp.route('/<file_id>', methods=['DELETE'])
+@auth_required
 def delete_reference_file(file_id):
     """
     DELETE /api/reference-files/<file_id> - Delete a reference file
-    
-    Returns:
-        Success message
     """
     try:
-        reference_file = ReferenceFile.query.get(file_id)
+        user_id = request.user_id
+        reference_file = firestore_service.get_reference_file(file_id, user_id)
         if not reference_file:
             return not_found('Reference file')
-        
-        # Delete file from disk
-        try:
-            upload_folder = current_app.config['UPLOAD_FOLDER']
-            file_path = Path(upload_folder) / reference_file.file_path
-            if file_path.exists():
-                file_path.unlink()
-                logger.info(f"Deleted file from disk: {file_path}")
-        except Exception as e:
-            logger.warning(f"Failed to delete file from disk: {str(e)}")
-        
-        # Delete from database
-        db.session.delete(reference_file)
-        db.session.commit()
-        
+
+        # Delete from Storage
+        file_service = FileService()
+        blob_path = reference_file.get('file_path')
+        if blob_path:
+            blob = file_service.bucket.blob(blob_path)
+            blob.delete()
+
+        # Delete from Firestore
+        firestore_service.db.collection('reference_files').document(file_id) \
+            .delete()
+
         logger.info(f"Deleted reference file: {file_id}")
-        
+
         return success_response({'message': 'File deleted successfully'})
-        
+
     except Exception as e:
         logger.error(f"Error deleting reference file: {str(e)}", exc_info=True)
         return error_response('SERVER_ERROR', str(e), 500)
 
 
 @reference_file_bp.route('/project/<project_id>', methods=['GET'])
+@auth_required
 def list_project_reference_files(project_id):
     """
-    GET /api/reference-files/project/<project_id> - List all reference files for a project
-    
-    Special values:
-    - 'all': List all reference files (global + all projects)
-    - 'global' or 'none': List only global files (not associated with any project)
-    - project_id: List files for specific project
-    
-    Returns:
-        List of reference files
+    GET /api/reference-files/project/<project_id>
     """
     try:
-        # Special case: 'all' means list all files
+        user_id = request.user_id
         if project_id == 'all':
-            reference_files = ReferenceFile.query.all()
-        # Special case: 'global' or 'none' means list global files (not associated with any project)
+            docs = firestore_service.db.collection('reference_files') \
+                .where('user_id', '==', user_id).stream()
         elif project_id in ['global', 'none']:
-            reference_files = ReferenceFile.query.filter_by(project_id=None).all()
+            docs = firestore_service.db.collection('reference_files') \
+                .where('user_id', '==', user_id) \
+                .where('project_id', '==', None).stream()
         else:
             # Verify project exists
-            project = Project.query.get(project_id)
+            project = firestore_service.get_project(project_id, user_id)
             if not project:
                 return not_found('Project')
-            
-            reference_files = ReferenceFile.query.filter_by(project_id=project_id).all()
-        
-        # 列表查询时不包含 markdown_content 和失败计数，加快响应速度
+
+            docs = firestore_service.db.collection('reference_files') \
+                .where('user_id', '==', user_id) \
+                .where('project_id', '==', project_id).stream()
+
+        files = [doc.to_dict() for doc in docs]
+
         return success_response({
-            'files': [f.to_dict(include_content=False) for f in reference_files]
+            'files': files
         })
-        
+
     except Exception as e:
         logger.error(f"Error listing reference files: {str(e)}", exc_info=True)
         return error_response('SERVER_ERROR', str(e), 500)
 
 
 @reference_file_bp.route('/<file_id>/parse', methods=['POST'])
+@auth_required
 def trigger_file_parse(file_id):
     """
-    POST /api/reference-files/<file_id>/parse - Trigger parsing for a reference file
-    
-    Returns:
-        Updated reference file information
+    POST /api/reference-files/<file_id>/parse
     """
     try:
-        reference_file = ReferenceFile.query.get(file_id)
+        user_id = request.user_id
+        reference_file = firestore_service.get_reference_file(file_id, user_id)
         if not reference_file:
             return not_found('Reference file')
-        
-        # 如果正在解析，直接返回
-        if reference_file.parse_status == 'parsing':
+
+        if reference_file.get('parse_status') == 'parsing':
             return success_response({
-                'file': reference_file.to_dict(),
+                'file': reference_file,
                 'message': 'File is already being parsed'
             })
-        
-        # 如果解析完成或失败，可以重新解析
-        if reference_file.parse_status in ['completed', 'failed']:
-            reference_file.parse_status = 'pending'
-            reference_file.error_message = None
-            # 清空之前的解析结果，以便重新解析
-            reference_file.markdown_content = None
-            reference_file.mineru_batch_id = None
-            db.session.commit()
-        
-        # 获取文件路径
-        upload_folder = current_app.config['UPLOAD_FOLDER']
-        file_path = Path(upload_folder) / reference_file.file_path
-        
-        if not file_path.exists():
-            return error_response('FILE_NOT_FOUND', f'File not found: {file_path}', 404)
-        
-        # 启动异步解析
+
+        # Update status to pending
+        firestore_service.update_reference_file(file_id, {
+            'parse_status': 'pending',
+            'error_message': None,
+            'markdown_content': None,
+            'mineru_batch_id': None
+        }, user_id)
+
+        # Get config for background task
+        config = {
+            'MINERU_TOKEN': current_app.config.get('MINERU_TOKEN'),
+            'MINERU_API_BASE': current_app.config.get('MINERU_API_BASE'),
+            'GOOGLE_API_KEY': current_app.config.get('GOOGLE_API_KEY'),
+            'GOOGLE_API_BASE': current_app.config.get('GOOGLE_API_BASE'),
+            'IMAGE_CAPTION_MODEL': current_app.config.get('IMAGE_CAPTION_MODEL')
+        }
+
+        # Start async parsing
         thread = threading.Thread(
             target=_parse_file_async,
-            args=(reference_file.id, str(file_path), reference_file.filename, current_app._get_current_object())
+            args=(
+                file_id,
+                user_id,
+                reference_file.get('file_path'),
+                reference_file.get('filename'),
+                config
+            )
         )
         thread.daemon = True
         thread.start()
-        
-        logger.info(f"Triggered parsing for file: {reference_file.filename} (ID: {file_id})")
-        
+
+        logger.info(f"Triggered parsing for file: "
+                    f"{reference_file.get('filename')} (ID: {file_id})")
+
         return success_response({
-            'file': reference_file.to_dict(),
+            'file': firestore_service.get_reference_file(file_id, user_id),
             'message': 'Parsing started'
         })
-        
+
     except Exception as e:
         logger.error(f"Error triggering file parse: {str(e)}", exc_info=True)
         return error_response('SERVER_ERROR', str(e), 500)
 
 
 @reference_file_bp.route('/<file_id>/associate', methods=['POST'])
+@auth_required
 def associate_file_to_project(file_id):
     """
-    POST /api/reference-files/<file_id>/associate - Associate a reference file to a project
-    
-    Request body:
-    {
-        "project_id": "project-id-here"
-    }
-    
-    Returns:
-        Updated reference file information
+    POST /api/reference-files/<file_id>/associate
     """
     try:
-        reference_file = ReferenceFile.query.get(file_id)
+        user_id = request.user_id
+        reference_file = firestore_service.get_reference_file(file_id, user_id)
         if not reference_file:
             return not_found('Reference file')
-        
+
         data = request.get_json() or {}
         project_id = data.get('project_id')
-        
+
         if not project_id:
             return bad_request("project_id is required")
-        
+
         # Verify project exists
-        project = Project.query.get(project_id)
+        project = firestore_service.get_project(project_id, user_id)
         if not project:
             return not_found('Project')
-        
+
         # Update file's project_id
-        reference_file.project_id = project_id
-        reference_file.updated_at = datetime.utcnow()
-        db.session.commit()
-        
+        firestore_service.update_reference_file(file_id, {
+            'project_id': project_id
+        }, user_id)
+
         logger.info(f"Associated reference file {file_id} to project {project_id}")
-        
-        return success_response({'file': reference_file.to_dict()})
-        
+
+        return success_response({
+            'file': firestore_service.get_reference_file(file_id, user_id)
+        })
+
     except Exception as e:
-        logger.error(f"Error associating reference file: {str(e)}", exc_info=True)
+        logger.error(f"Error associating reference file: {str(e)}",
+                     exc_info=True)
         return error_response('SERVER_ERROR', str(e), 500)
 
 
 @reference_file_bp.route('/<file_id>/dissociate', methods=['POST'])
+@auth_required
 def dissociate_file_from_project(file_id):
     """
-    POST /api/reference-files/<file_id>/dissociate - Remove a reference file from its project
-    
-    This sets the file's project_id to None, effectively making it a global file.
-    The file itself is not deleted.
-    
-    Returns:
-        Updated reference file information
+    POST /api/reference-files/<file_id>/dissociate
     """
     try:
-        reference_file = ReferenceFile.query.get(file_id)
+        user_id = request.user_id
+        reference_file = firestore_service.get_reference_file(file_id, user_id)
         if not reference_file:
             return not_found('Reference file')
-        
-        # Remove project association
-        reference_file.project_id = None
-        reference_file.updated_at = datetime.utcnow()
-        db.session.commit()
-        
-        logger.info(f"Dissociated reference file {file_id} from project")
-        
-        return success_response({'file': reference_file.to_dict(), 'message': 'File removed from project'})
-        
-    except Exception as e:
-        logger.error(f"Error dissociating reference file: {str(e)}", exc_info=True)
-        return error_response('SERVER_ERROR', str(e), 500)
 
+        # Remove project association
+        firestore_service.update_reference_file(file_id, {
+            'project_id': None
+        }, user_id)
+
+        logger.info(f"Dissociated reference file {file_id} from project")
+
+        return success_response({
+            'file': firestore_service.get_reference_file(file_id, user_id),
+            'message': 'File removed from project'
+        })
+
+    except Exception as e:
+        logger.error(f"Error dissociating reference file: {str(e)}",
+                     exc_info=True)
+        return error_response('SERVER_ERROR', str(e), 500)

@@ -28,6 +28,7 @@
 *.md
 !README.md
 !README_EN.md
+!migration_plan.md
 *.pyc
 .env
 *.ppt
