@@ -28,10 +28,13 @@ def init_firebase():
                 logging.info("Firebase initialized with default credentials")
             except Exception as e:
                 logging.error(f"Failed to initialize Firebase: {e}")
-                # For local dev without Firebase, we might want to mock it or fail fast
-                raise e
+                logging.warning("App will continue without Firebase. Firestore operations will fail.")
+                # Do not raise here to allow app to start for local debugging
 
-    return firestore.client(), storage.bucket()
+    try:
+        return firestore.client(), storage.bucket()
+    except Exception:
+        return None, None
 
 
 # Global clients

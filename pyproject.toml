@@ -21,5 +21,4 @@ dependencies = [
     "gunicorn>=21.2.0",
 ]
 
-[tool.uv]
-index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
