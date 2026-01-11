@@ -57,7 +57,9 @@ def create_app():
     app.register_blueprint(file_bp)
     app.register_blueprint(material_bp)
     app.register_blueprint(material_global_bp)
-    app.register_blueprint(reference_file_bp, url_prefix="/api/reference-files")
+    app.register_blueprint(
+        reference_file_bp, url_prefix="/api/reference-files"
+    )
     app.register_blueprint(api_config_bp)
 
     # Health check endpoint
@@ -71,7 +73,9 @@ def create_app():
         return {
             "name": "PPTer Cloud API",
             "version": "2.0.0",
-            "description": "AI-powered PPT generation service " "(Cloud Run Edition)",
+            "description": (
+                "AI-powered PPT generation service (Cloud Run Edition)"
+            ),
             "endpoints": {"health": "/health", "projects": "/api/projects"},
         }
 

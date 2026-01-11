@@ -1,7 +1,7 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig, AxiosError, AxiosResponse } from 'axios';
 
 // Cloud Run Backend URL
-const API_BASE_URL = 'https://aippt-backend-54124599328.asia-east1.run.app';
+const API_BASE_URL = 'https://ppteng-54124599328.asia-east1.run.app';
 
 // 创建 axios 实例
 export const apiClient = axios.create({
@@ -11,7 +11,7 @@ export const apiClient = axios.create({
 
 // 请求拦截器
 apiClient.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig) => {
     // 如果请求体是 FormData，删除 Content-Type 让浏览器自动设置
     // 浏览器会自动添加正确的 Content-Type 和 boundary
     if (config.data instanceof FormData) {
@@ -26,17 +26,17 @@ apiClient.interceptors.request.use(
 
     return config;
   },
-  (error) => {
+  (error: AxiosError) => {
     return Promise.reject(error);
   }
 );
 
 // 响应拦截器
 apiClient.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
     return response;
   },
-  (error) => {
+  (error: AxiosError) => {
     // 统一错误处理
     if (error.response) {
       // 服务器返回错误状态码
