@@ -5,7 +5,7 @@ Refactored Flask Application for Cloud Run & Firebase
 import os
 import logging
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from firebase_config import init_firebase
 from config import Config
@@ -67,17 +67,16 @@ def create_app():
     def health_check():
         return {"status": "ok", "message": "PPTer Cloud API is running"}
 
-    # Root endpoint
-    @app.route("/")
-    def index():
-        return {
-            "name": "PPTer Cloud API",
-            "version": "2.0.0",
-            "description": (
-                "AI-powered PPT generation service (Cloud Run Edition)"
-            ),
-            "endpoints": {"health": "/health", "projects": "/api/projects"},
-        }
+    # Root endpoint - Serve Frontend
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
+    def serve(path):
+        if path != "" and os.path.exists(
+            os.path.join("../frontend/dist", path)
+        ):
+            return send_from_directory("../frontend/dist", path)
+        else:
+            return send_from_directory("../frontend/dist", "index.html")
 
     @app.route('/favicon.ico')
     def favicon():

@@ -1,8 +1,17 @@
 {
     "typescript.autoClosingTags": false,
     "cSpell.words": [
+        "chdir",
+        "cloudsdktool",
         "dotenv",
+        "genai",
+        "gunicorn",
+        "markitdown",
         "ppteng",
-        "cloudsdktool"
+        "pydantic",
+        "PYTHONPATH",
+        "pyproject",
+        "reportlab",
+        "werkzeug"
     ]
 }

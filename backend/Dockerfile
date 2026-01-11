@@ -1,4 +1,18 @@
-# Use Python 3.10 slim as base image
+# Stage 1: Build Frontend
+FROM node:18-alpine AS frontend-builder
+WORKDIR /app/frontend
+
+# Copy frontend dependency files
+COPY frontend/package*.json ./
+# Install dependencies
+RUN npm install
+
+# Copy frontend source code
+COPY frontend/ ./
+# Build frontend
+RUN npm run build
+
+# Stage 2: Backend
 FROM python:3.10-slim
 
 # Set working directory
@@ -31,6 +45,9 @@ RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ \
 
 # Copy backend code
 COPY backend/ ./backend/
+
+# Copy built frontend artifacts from builder stage
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Set environment variables
 ENV PYTHONPATH=/app/backend
