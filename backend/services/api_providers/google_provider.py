@@ -181,7 +181,10 @@ class GoogleImageProvider(BaseImageProvider):
         # Build edit instruction
         edit_instruction = prompt
         if original_description:
-            edit_instruction = (\n                f"Original description: {original_description}\n\n"\n                f"Edit instruction: {prompt}"\n            )
+            edit_instruction = (
+                f"Original description: {original_description}\n\n"
+                f"Edit instruction: {prompt}"
+            )
 
         # Use generate_image with current image as reference
         return self.generate_image(
