@@ -27,7 +27,7 @@ load_dotenv()
 
 def create_app():
     """Application factory"""
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='../frontend/dist', static_url_path='')
 
     # Load configuration
     app.config.from_object(Config)
@@ -72,11 +72,11 @@ def create_app():
     @app.route("/<path:path>")
     def serve(path):
         if path != "" and os.path.exists(
-            os.path.join("../frontend/dist", path)
+            os.path.join(app.static_folder, path)
         ):
-            return send_from_directory("../frontend/dist", path)
+            return send_from_directory(app.static_folder, path)
         else:
-            return send_from_directory("../frontend/dist", "index.html")
+            return send_from_directory(app.static_folder, "index.html")
 
     @app.route('/favicon.ico')
     def favicon():

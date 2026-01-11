@@ -3,7 +3,7 @@ Authentication utilities for JWT token verification
 """
 import os
 from functools import wraps
-from flask import request, jsonify
+from flask import request
 import jwt
 
 
@@ -35,25 +35,31 @@ def auth_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
+
+        # Default user ID for "no user system" mode
+        default_user_id = 'default_user'
+
         if not auth_header or not auth_header.startswith('Bearer '):
-            return jsonify({'error': 'No token provided'}), 401
+            # Bypass: allow request without token
+            request.user_id = default_user_id
+            return f(*args, **kwargs)
 
         token = auth_header.split(' ')[1]
         decoded_token = verify_token(token)
 
         if not decoded_token:
-            return jsonify({'error': 'Invalid token'}), 401
+            # Bypass: allow request with invalid token
+            request.user_id = default_user_id
+            return f(*args, **kwargs)
 
         # Add user_id to request context
         # Support multiple common UID keys
         request.user_id = (
             decoded_token.get('uid') or
             decoded_token.get('user_id') or
-            decoded_token.get('sub')
+            decoded_token.get('sub') or
+            default_user_id
         )
-
-        if not request.user_id:
-            return jsonify({'error': 'User ID not found in token'}), 401
 
         return f(*args, **kwargs)
 
