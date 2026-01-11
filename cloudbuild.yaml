@@ -25,7 +25,7 @@ steps:
       - "--image"
       - "gcr.io/$PROJECT_ID/aippt-backend"
       - "--region"
-      - "global"
+      - "asia-east1"
       - "--platform"
       - "managed"
       - "--allow-unauthenticated"
