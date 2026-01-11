@@ -7,12 +7,12 @@ import logging
 from dotenv import load_dotenv
 from flask import Flask
 from flask_cors import CORS
-from .firebase_config import init_firebase
-from .config import Config
-from .controllers.material_controller import material_bp, material_global_bp
-from .controllers.reference_file_controller import reference_file_bp
-from .controllers.api_config_controller import api_config_bp
-from .controllers import (
+from firebase_config import init_firebase
+from config import Config
+from controllers.material_controller import material_bp, material_global_bp
+from controllers.reference_file_controller import reference_file_bp
+from controllers.api_config_controller import api_config_bp
+from controllers import (
     project_bp,
     page_bp,
     template_bp,
