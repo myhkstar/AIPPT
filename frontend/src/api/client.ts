@@ -1,8 +1,7 @@
 import axios from 'axios';
 
-// 开发环境：通过 Vite proxy 转发
-// 生产环境：通过 nginx proxy 转发
-const API_BASE_URL = '';
+// Cloud Run Backend URL
+const API_BASE_URL = 'https://aippt-backend-54124599328.asia-east1.run.app';
 
 // 创建 axios 实例
 export const apiClient = axios.create({
@@ -24,7 +23,7 @@ apiClient.interceptors.request.use(
       // 对于非 FormData 请求，默认设置为 JSON
       config.headers['Content-Type'] = 'application/json';
     }
-    
+
     return config;
   },
   (error) => {
@@ -61,12 +60,12 @@ export const getImageUrl = (path?: string, timestamp?: string | number): string 
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }
-  
+
   // 处理后端返回的相对路径格式
   // 后端返回格式: "project_id/file_type/filename"
   // 需要转换为: "/files/project_id/file_type/filename"
   let url = path;
-  
+
   // 如果路径不以 /files/ 开头，则添加 /files/ 前缀
   if (!url.startsWith('/files/')) {
     // 确保路径以 / 开头
@@ -76,15 +75,20 @@ export const getImageUrl = (path?: string, timestamp?: string | number): string 
     // 添加 /files 前缀
     url = '/files' + url;
   }
-  
+
+  // 如果配置了 API_BASE_URL，则拼接完整路径
+  if (API_BASE_URL) {
+    url = `${API_BASE_URL}${url}`;
+  }
+
   // 添加时间戳参数避免浏览器缓存（仅在提供时间戳时添加）
   if (timestamp) {
-    const ts = typeof timestamp === 'string' 
-      ? new Date(timestamp).getTime() 
+    const ts = typeof timestamp === 'string'
+      ? new Date(timestamp).getTime()
       : timestamp;
     url += `?v=${ts}`;
   }
-  
+
   return url;
 };
 

@@ -75,6 +75,10 @@ def create_app():
             "endpoints": {"health": "/health", "projects": "/api/projects"},
         }
 
+    @app.route('/favicon.ico')
+    def favicon():
+        return "", 204
+
     return app
 
 
