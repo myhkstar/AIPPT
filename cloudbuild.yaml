@@ -9,12 +9,13 @@ steps:
         "backend/Dockerfile", # 指向子目录的 Dockerfile
         ".", # 上下文设为根目录
       ]
-
-  # Push the container image
+      
+ - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-t", "gcr.io/$PROJECT_ID/aippt-backend", "-f", "backend/Dockerfile", "."]
+  
   - name: "gcr.io/cloud-builders/docker"
     args: ["push", "gcr.io/$PROJECT_ID/aippt-backend"]
 
-  # Deploy container image to Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: gcloud
     args:
@@ -28,6 +29,11 @@ steps:
       - "--platform"
       - "managed"
       - "--allow-unauthenticated"
+
+# --- 添加以下这段配置 ---
+options:
+  logging: CLOUD_LOGGING_ONLY
+# -----------------------
 
 images:
   - "gcr.io/$PROJECT_ID/aippt-backend"
