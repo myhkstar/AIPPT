@@ -10,14 +10,14 @@ import tempfile
 import shutil
 from datetime import datetime
 from urllib.parse import unquote
-from pathlib import Path
+
 from flask import Blueprint, request, current_app
 from werkzeug.utils import secure_filename
 
 from utils.response import (
     success_response, error_response, bad_request, not_found
 )
-from utils.auth import auth_required
+from utils.auth_middleware import auth_required
 from services.file_parser_service import FileParserService
 from services.firestore_service import FirestoreService
 from services.file_service import FileService
@@ -130,7 +130,9 @@ def upload_reference_file():
         # Get filename
         original_filename = file.filename
         if not original_filename or original_filename == '':
-            content_disposition = request.headers.get('Content-Disposition', '')
+            content_disposition = request.headers.get(
+                'Content-Disposition', ''
+            )
             if content_disposition:
                 filename_match = re.search(
                     r'filename[^;=\n]*=(([\'"]).*?\2|[^;\n]*)',
@@ -140,7 +142,7 @@ def upload_reference_file():
                     original_filename = filename_match.group(1).strip('"\'')
                     try:
                         original_filename = unquote(original_filename)
-                    except:
+                    except Exception:
                         pass
 
         if not original_filename or original_filename == '':
@@ -155,8 +157,10 @@ def upload_reference_file():
             {'.pdf', '.docx', '.pptx', '.txt', '.md', '.xlsx', '.csv'}
         )
         if not _allowed_file(original_filename, allowed_extensions):
-            return bad_request(f"File type not allowed. "
-                               f"Allowed types: {', '.join(allowed_extensions)}")
+            return bad_request(
+                f"File type not allowed. Allowed types: "
+                f"{', '.join(allowed_extensions)}"
+            )
 
         # Get project_id (optional)
         project_id = request.form.get('project_id')
@@ -183,7 +187,9 @@ def upload_reference_file():
         unique_filename = f"{unique_id}_{filename}"
 
         if project_id:
-            blob_path = f"projects/{project_id}/reference_files/{unique_filename}"
+            blob_path = (
+                f"projects/{project_id}/reference_files/{unique_filename}"
+            )
         else:
             blob_path = f"users/{user_id}/reference_files/{unique_filename}"
 
@@ -339,7 +345,9 @@ def trigger_file_parse(file_id):
             'MINERU_API_BASE': current_app.config.get('MINERU_API_BASE'),
             'GOOGLE_API_KEY': current_app.config.get('GOOGLE_API_KEY'),
             'GOOGLE_API_BASE': current_app.config.get('GOOGLE_API_BASE'),
-            'IMAGE_CAPTION_MODEL': current_app.config.get('IMAGE_CAPTION_MODEL')
+            'IMAGE_CAPTION_MODEL': current_app.config.get(
+                'IMAGE_CAPTION_MODEL'
+            )
         }
 
         # Start async parsing
@@ -397,7 +405,9 @@ def associate_file_to_project(file_id):
             'project_id': project_id
         }, user_id)
 
-        logger.info(f"Associated reference file {file_id} to project {project_id}")
+        logger.info(
+            f"Associated reference file {file_id} to project {project_id}"
+        )
 
         return success_response({
             'file': firestore_service.get_reference_file(file_id, user_id)

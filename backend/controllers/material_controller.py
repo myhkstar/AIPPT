@@ -4,7 +4,7 @@ Material Controller - handles standalone material image generation
 import logging
 from flask import Blueprint, request, current_app
 from utils import success_response, error_response, not_found, bad_request
-from utils.auth import auth_required
+from utils.auth_middleware import auth_required
 from services import AIService, FileService
 from services.firestore_service import FirestoreService
 from services.task_manager import task_manager, generate_material_image_task

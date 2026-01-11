@@ -9,9 +9,6 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from firebase_config import init_firebase
 from config import Config
-from controllers.material_controller import material_bp, material_global_bp
-from controllers.reference_file_controller import reference_file_bp
-from controllers.api_config_controller import api_config_bp
 from controllers import (
     project_bp,
     page_bp,
@@ -19,6 +16,13 @@ from controllers import (
     user_template_bp,
     export_bp,
     file_bp,
+    material_bp,
+    material_global_bp,
+    reference_file_bp,
+    api_config_bp,
+    auth_bp,
+    user_bp,
+    admin_bp
 )
 
 # Load environment variables
@@ -61,6 +65,9 @@ def create_app():
         reference_file_bp, url_prefix="/api/reference-files"
     )
     app.register_blueprint(api_config_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(user_bp)
+    app.register_blueprint(admin_bp)
 
     # Health check endpoint
     @app.route("/health")

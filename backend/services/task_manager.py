@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, List, Dict
 from datetime import datetime
 from services.firestore_service import FirestoreService
+from services.usage_service import UsageService
 
 logger = logging.getLogger(__name__)
 firestore_service = FirestoreService()
@@ -127,6 +128,17 @@ def generate_descriptions_task(task_id: str, project_id: str, user_id: str,
                         'description_content': desc_content,
                         'status': 'DESCRIPTION_GENERATED'
                     }, user_id)
+                    
+                    # Record usage
+                    usage = ai_service.last_usage
+                    tokens = usage.get('total_tokens', 0)
+                    UsageService.record_usage(
+                        user_id, 
+                        f"Generate Description for Project {project_id}", 
+                        None, 
+                        tokens
+                    )
+                    
                     completed += 1
 
                 # Update task progress
@@ -286,6 +298,17 @@ def generate_images_task(task_id: str, project_id: str, user_id: str,
                         'generated_image_path': image_path,
                         'status': 'COMPLETED'
                     }, user_id)
+                    
+                    # Record usage
+                    usage = ai_service.last_usage
+                    tokens = usage.get('total_tokens', 0)
+                    UsageService.record_usage(
+                        user_id, 
+                        f"Generate Image for Project {project_id}", 
+                        image_path, 
+                        tokens
+                    )
+                    
                     completed += 1
 
                 # Update task progress

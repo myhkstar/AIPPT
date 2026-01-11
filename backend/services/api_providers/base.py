@@ -15,8 +15,19 @@ class BaseTextProvider(ABC):
         self.config = kwargs
     
     @abstractmethod
-    def generate_text(self, prompt: str, **kwargs) -> str:
-        """Generate text from prompt"""
+    def generate_text(self, prompt: str, **kwargs) -> Dict:
+        """
+        Generate text from prompt
+        Returns:
+            Dict: {
+                'text': str,
+                'usage': {
+                    'prompt_tokens': int,
+                    'completion_tokens': int,
+                    'total_tokens': int
+                }
+            }
+        """
         pass
     
     def get_supported_models(self) -> List[str]:
@@ -35,16 +46,34 @@ class BaseImageProvider(ABC):
     @abstractmethod
     def generate_image(self, prompt: str, ref_image: Optional[Image.Image] = None, 
                       additional_ref_images: Optional[List[Union[str, Image.Image]]] = None,
-                      **kwargs) -> Optional[Image.Image]:
-        """Generate image from prompt"""
+                      **kwargs) -> Dict:
+        """
+        Generate image from prompt
+        Returns:
+            Dict: {
+                'image': PIL.Image,
+                'usage': {
+                    'total_tokens': int
+                }
+            }
+        """
         pass
     
     @abstractmethod
     def edit_image(self, prompt: str, current_image: Image.Image,
                   original_description: str = None,
                   additional_ref_images: Optional[List[Union[str, Image.Image]]] = None,
-                  **kwargs) -> Optional[Image.Image]:
-        """Edit existing image with instruction"""
+                  **kwargs) -> Dict:
+        """
+        Edit existing image with instruction
+        Returns:
+            Dict: {
+                'image': PIL.Image,
+                'usage': {
+                    'total_tokens': int
+                }
+            }
+        """
         pass
     
     def get_supported_models(self) -> List[str]:

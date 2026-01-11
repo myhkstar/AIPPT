@@ -5,9 +5,9 @@ import os
 import logging
 import tempfile
 import shutil
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request
 from utils import error_response, not_found, bad_request, success_response
-from utils.auth import auth_required
+from utils.auth_middleware import auth_required
 from services import ExportService, FileService
 from services.firestore_service import FirestoreService
 

@@ -2,11 +2,11 @@
 Page Controller - handles page-related endpoints
 """
 import logging
-import json
+
 from datetime import datetime
 from flask import Blueprint, request, current_app
 from utils import success_response, error_response, not_found, bad_request
-from utils.auth import auth_required
+from utils.auth_middleware import auth_required
 from services import AIService, FileService, ProjectContext
 from services.firestore_service import FirestoreService
 from services.task_manager import (
@@ -21,7 +21,8 @@ firestore_service = FirestoreService()
 
 def _create_ai_service_from_request(request_data: dict = None) -> AIService:
     """
-    Create AI service instance from request data or fallback to environment config
+    Create AI service instance from request data or fallback to
+    environment config
     """
     text_config = None
     image_config = None
@@ -203,7 +204,8 @@ def update_page_outline(project_id, page_id):
 @auth_required
 def update_page_description(project_id, page_id):
     """
-    PUT /api/projects/{project_id}/pages/{page_id}/description - Edit description
+    PUT /api/projects/{project_id}/pages/{page_id}/description -
+    Edit description
     """
     try:
         user_id = request.user_id
@@ -229,7 +231,9 @@ def update_page_description(project_id, page_id):
         return success_response(page)
 
     except Exception as e:
-        logger.error(f"update_page_description failed: {str(e)}", exc_info=True)
+        logger.error(
+            f"update_page_description failed: {str(e)}", exc_info=True
+        )
         return error_response('SERVER_ERROR', str(e), 500)
 
 

@@ -6,10 +6,10 @@ from flask import Blueprint, request, current_app
 from utils import (
     success_response, error_response, not_found, bad_request, allowed_file
 )
-from utils.auth import auth_required
+from utils.auth_middleware import auth_required
 from services import FileService
 from services.firestore_service import FirestoreService
-from datetime import datetime
+
 
 logger = logging.getLogger(__name__)
 

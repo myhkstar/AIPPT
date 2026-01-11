@@ -5,14 +5,14 @@ import logging
 import uuid
 from flask import Blueprint, request, current_app
 from utils import success_response, error_response, not_found, bad_request
-from utils.auth import auth_required
+from utils.auth_middleware import auth_required
 from services import AIService, ProjectContext
 from services.firestore_service import FirestoreService
 from services.task_manager import (
-    task_manager,
     generate_descriptions_task,
     generate_images_task
 )
+from services.usage_service import UsageService
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -391,6 +391,16 @@ def generate_outline(project_id):
             'updated_at': datetime.utcnow()
         }, user_id)
         
+        # Record usage
+        usage = ai_service.last_usage
+        tokens = usage.get('total_tokens', 0)
+        UsageService.record_usage(
+            user_id, 
+            f"Generate Outline for Project {project_id}", 
+            None, 
+            tokens
+        )
+        
         return success_response({
             'pages': pages_list
         })
@@ -489,6 +499,17 @@ def generate_from_description(project_id):
         }, user_id)
 
         logger.info(f"从描述生成完成: 项目 {project_id}, 创建了 {len(pages_list)} 个页面")
+
+        # Record usage (this endpoint calls multiple AI methods, we take the last one or aggregate)
+        # For simplicity, we'll record the last usage which is usually the most significant
+        usage = ai_service.last_usage
+        tokens = usage.get('total_tokens', 0)
+        UsageService.record_usage(
+            user_id, 
+            f"Generate from Description for Project {project_id}", 
+            None, 
+            tokens
+        )
 
         return success_response({
             'pages': pages_list,

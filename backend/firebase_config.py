@@ -1,6 +1,6 @@
 import os
 import firebase_admin
-from firebase_admin import credentials, firestore, storage
+from firebase_admin import credentials, firestore, storage, auth
 import logging
 
 
@@ -32,18 +32,19 @@ def init_firebase():
                 # Do not raise here to allow app to start for local debugging
 
     try:
-        return firestore.client(), storage.bucket()
+        return firestore.client(), storage.bucket(), auth
     except Exception:
-        return None, None
+        return None, None, None
 
 
 # Global clients
 db = None
 bucket = None
+auth_client = None
 
 
 def get_firebase():
-    global db, bucket
-    if db is None or bucket is None:
-        db, bucket = init_firebase()
-    return db, bucket
+    global db, bucket, auth_client
+    if db is None or bucket is None or auth_client is None:
+        db, bucket, auth_client = init_firebase()
+    return db, bucket, auth_client

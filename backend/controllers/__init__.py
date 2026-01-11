@@ -4,7 +4,25 @@ from .page_controller import page_bp
 from .template_controller import template_bp, user_template_bp
 from .export_controller import export_bp
 from .file_controller import file_bp
-from .material_controller import material_bp
+from .material_controller import material_bp, material_global_bp
+from .reference_file_controller import reference_file_bp
+from .api_config_controller import api_config_bp
+from .auth_controller import auth_bp
+from .user_controller import user_bp
+from .admin_controller import admin_bp
 
-__all__ = ['project_bp', 'page_bp', 'template_bp', 'user_template_bp', 'export_bp', 'file_bp', 'material_bp']
-
+__all__ = [
+    'project_bp', 
+    'page_bp', 
+    'template_bp', 
+    'user_template_bp', 
+    'export_bp', 
+    'file_bp', 
+    'material_bp',
+    'material_global_bp',
+    'reference_file_bp',
+    'api_config_bp',
+    'auth_bp',
+    'user_bp',
+    'admin_bp'
+]
