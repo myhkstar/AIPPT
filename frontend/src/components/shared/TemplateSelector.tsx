@@ -44,9 +44,9 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
   const { show, ToastContainer } = useToast();
 
   // 加载用户模板列表
-  useEffect(() => {
-    loadUserTemplates();
-  }, []);
+  // useEffect(() => {
+  //   loadUserTemplates();
+  // }, []);
 
   const loadUserTemplates = async () => {
     setIsLoadingTemplates(true);
@@ -113,11 +113,11 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
 
   const handleSelectMaterials = async (materials: Material[], saveAsTemplate?: boolean) => {
     if (materials.length === 0) return;
-    
+
     try {
       // 将第一个素材转换为File对象
       const file = await materialUrlToFile(materials[0]);
-      
+
       // 根据 saveAsTemplate 参数决定是否保存到模板库
       if (saveAsTemplate) {
         // 保存到用户模板库
@@ -171,11 +171,10 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
                 <div
                   key={template.template_id}
                   onClick={() => handleSelectUserTemplate(template)}
-                  className={`aspect-[4/3] rounded-lg border-2 cursor-pointer transition-all relative group ${
-                    selectedTemplateId === template.template_id
+                  className={`aspect-[4/3] rounded-lg border-2 cursor-pointer transition-all relative group ${selectedTemplateId === template.template_id
                       ? 'border-banana-500 ring-2 ring-banana-200'
                       : 'border-gray-200 hover:border-banana-300'
-                  }`}
+                    }`}
                 >
                   <img
                     src={getImageUrl(template.template_image_url)}
@@ -188,9 +187,8 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
                       type="button"
                       onClick={(e) => handleDeleteUserTemplate(template, e)}
                       disabled={deletingTemplateId === template.template_id}
-                      className={`absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow z-20 opacity-0 group-hover:opacity-100 transition-opacity ${
-                        deletingTemplateId === template.template_id ? 'opacity-60 cursor-not-allowed' : ''
-                      }`}
+                      className={`absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow z-20 opacity-0 group-hover:opacity-100 transition-opacity ${deletingTemplateId === template.template_id ? 'opacity-60 cursor-not-allowed' : ''
+                        }`}
                       aria-label="删除模板"
                     >
                       <X size={12} />
@@ -215,11 +213,10 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
               <div
                 key={template.id}
                 onClick={() => template.preview && handleSelectPresetTemplate(template.id, template.preview)}
-                className={`aspect-[4/3] rounded-lg border-2 cursor-pointer transition-all bg-gray-100 flex items-center justify-center relative ${
-                  selectedPresetTemplateId === template.id
+                className={`aspect-[4/3] rounded-lg border-2 cursor-pointer transition-all bg-gray-100 flex items-center justify-center relative ${selectedPresetTemplateId === template.id
                     ? 'border-banana-500 ring-2 ring-banana-200'
                     : 'border-gray-200 hover:border-banana-500'
-                }`}
+                  }`}
               >
                 {template.preview ? (
                   <>
@@ -253,7 +250,7 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
               />
             </label>
           </div>
-          
+
           {/* 在预览页显示：上传模板时是否保存到模板库的选项 */}
           {!showUpload && (
             <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">

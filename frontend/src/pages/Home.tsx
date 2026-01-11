@@ -37,17 +37,17 @@ export const Home: React.FC = () => {
     setCurrentProjectId(projectId);
 
     // 加载用户模板列表（用于按需获取File）
-    const loadTemplates = async () => {
-      try {
-        const response = await listUserTemplates();
-        if (response.data?.templates) {
-          setUserTemplates(response.data.templates);
-        }
-      } catch (error) {
-        console.error('加载用户模板失败:', error);
-      }
-    };
-    loadTemplates();
+    // const loadTemplates = async () => {
+    //   try {
+    //     const response = await listUserTemplates();
+    //     if (response.data?.templates) {
+    //       setUserTemplates(response.data.templates);
+    //     }
+    //   } catch (error) {
+    //     console.error('加载用户模板失败:', error);
+    //   }
+    // };
+    // loadTemplates();
   }, []);
 
   const handleOpenMaterialModal = () => {
@@ -582,8 +582,8 @@ export const Home: React.FC = () => {
             <button
               onClick={() => setInputMode('structured')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${inputMode === 'structured'
-                  ? 'bg-banana-100 text-banana-700 border-2 border-banana-400'
-                  : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
+                ? 'bg-banana-100 text-banana-700 border-2 border-banana-400'
+                : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
                 }`}
             >
               <LayoutGrid size={16} />
@@ -592,8 +592,8 @@ export const Home: React.FC = () => {
             <button
               onClick={() => setInputMode('freeform')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${inputMode === 'freeform'
-                  ? 'bg-banana-100 text-banana-700 border-2 border-banana-400'
-                  : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
+                ? 'bg-banana-100 text-banana-700 border-2 border-banana-400'
+                : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
                 }`}
             >
               <Type size={16} />
@@ -611,8 +611,8 @@ export const Home: React.FC = () => {
                     key={type}
                     onClick={() => setActiveTab(type)}
                     className={`flex-1 flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-3 rounded-lg font-medium transition-all text-sm md:text-base touch-manipulation ${activeTab === type
-                        ? 'bg-gradient-to-r from-banana-500 to-banana-600 text-black shadow-yellow'
-                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-banana-50 active:bg-banana-100'
+                      ? 'bg-gradient-to-r from-banana-500 to-banana-600 text-black shadow-yellow'
+                      : 'bg-white border border-gray-200 text-gray-700 hover:bg-banana-50 active:bg-banana-100'
                       }`}
                   >
                     <span className="scale-90 md:scale-100">{config.icon}</span>

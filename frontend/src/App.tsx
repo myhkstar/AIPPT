@@ -20,21 +20,21 @@ function App() {
   // 初始化API配置
   useEffect(() => {
     initializeDefaults();
-    
+
     // 预热配置缓存
     warmupApiConfigCache();
-    
+
     // 检查是否需要显示配置向导
-    const hasShownWizard = localStorage.getItem('api-config-wizard-shown');
-    const status = getApiConfigStatus();
-    
+    // const hasShownWizard = localStorage.getItem('api-config-wizard-shown');
+    // const status = getApiConfigStatus();
+
     // 如果从未显示过向导且没有配置API，则显示向导
-    if (!hasShownWizard && status.status === 'none') {
-      // 延迟显示，确保页面已加载
-      setTimeout(() => {
-        setIsWizardOpen(true);
-      }, 1000);
-    }
+    // if (!hasShownWizard && status.status === 'none') {
+    //   // 延迟显示，确保页面已加载
+    //   setTimeout(() => {
+    //     setIsWizardOpen(true);
+    //   }, 1000);
+    // }
   }, [initializeDefaults]);
 
   // 恢复项目状态
@@ -71,11 +71,11 @@ function App() {
       </Routes>
       <ToastContainer />
       <GithubLink />
-      
+
       {/* API配置向导 */}
-      <ApiConfigWizard 
-        isOpen={isWizardOpen} 
-        onClose={handleWizardClose} 
+      <ApiConfigWizard
+        isOpen={isWizardOpen}
+        onClose={handleWizardClose}
       />
     </BrowserRouter>
   );
