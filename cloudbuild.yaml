@@ -9,10 +9,7 @@ steps:
         "backend/Dockerfile", # 指向子目录的 Dockerfile
         ".", # 上下文设为根目录
       ]
-      
- - name: "gcr.io/cloud-builders/docker"
-    args: ["build", "-t", "gcr.io/$PROJECT_ID/aippt-backend", "-f", "backend/Dockerfile", "."]
-  
+
   - name: "gcr.io/cloud-builders/docker"
     args: ["push", "gcr.io/$PROJECT_ID/aippt-backend"]
 
