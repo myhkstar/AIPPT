@@ -7,8 +7,13 @@ import logging
 from dotenv import load_dotenv
 from flask import Flask, send_from_directory
 from flask_cors import CORS
+logging.basicConfig(level=logging.INFO)
+logging.info("Starting app.py imports...")
+
 from firebase_config import init_firebase
 from config import Config
+
+logging.info("Importing controllers...")
 from controllers import (
     project_bp,
     page_bp,
@@ -24,20 +29,25 @@ from controllers import (
     user_bp,
     admin_bp
 )
+logging.info("All controllers imported successfully")
 
 # Load environment variables
 load_dotenv()
+logging.info("Environment variables loaded")
 
 
 def create_app():
     """Application factory"""
+    logging.info("Starting create_app...")
     app = Flask(__name__, static_folder='../frontend/dist', static_url_path='')
+    logging.info(f"Flask app created. Static folder: {app.static_folder}")
 
     # Load configuration
     app.config.from_object(Config)
 
     # Initialize Firebase
     try:
+        logging.info("Initializing Firebase...")
         init_firebase()
         logging.info("Firebase initialized successfully")
     except Exception as e:
@@ -53,6 +63,7 @@ def create_app():
     CORS(app, origins=cors_origins)
 
     # Register blueprints
+    logging.info("Registering blueprints...")
     app.register_blueprint(project_bp)
     app.register_blueprint(page_bp)
     app.register_blueprint(template_bp)
@@ -68,6 +79,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(admin_bp)
+    logging.info("Blueprints registered successfully")
 
     # Health check endpoint
     @app.route("/health")

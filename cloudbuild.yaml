@@ -10,6 +10,10 @@ steps:
         ".", # 上下文设为根目录
       ]
 
+  # Temporary step to verify file structure
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["run", "gcr.io/$PROJECT_ID/ppteng", "ls", "-R", "/app"]
+
   - name: "gcr.io/cloud-builders/docker"
     args: ["push", "gcr.io/$PROJECT_ID/ppteng"]
 
