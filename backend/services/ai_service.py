@@ -78,6 +78,20 @@ class AIService:
         """
         self.text_provider = None
         self.image_provider = None
+        
+        # 1. 自动补全 text_config
+        if not text_config:
+            # 尝试从环境变量获取默认配置
+            import os
+            env_api_key = os.getenv('GOOGLE_API_KEY')
+            # K_SERVICE 代表在 Cloud Run 环境
+            if env_api_key or os.getenv('K_SERVICE'):
+                text_config = {
+                    'provider': 'google',
+                    'api_key': env_api_key or '',
+                    'model': 'gemini-1.5-flash'  # 设置默认模型
+                }
+                logger.info("Auto-configured text provider using environment variables")
 
         # Initialize text provider
         if text_config:
@@ -113,6 +127,7 @@ class AIService:
     def _ensure_text_provider(self):
         """Ensure text provider is available"""
         if not self.text_provider:
+            logger.error("Text provider not initialized. Current text_provider is None.")
             raise ProviderError("No text generation provider configured")
 
     def _ensure_image_provider(self):
