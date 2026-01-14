@@ -2,6 +2,7 @@
 Google Gemini API provider
 """
 import logging
+import os
 from typing import List, Dict, Optional, Union
 from PIL import Image
 # Lazy imports
@@ -13,6 +14,7 @@ from .base import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 
 class GoogleTextProvider(BaseTextProvider):
@@ -29,53 +31,27 @@ class GoogleTextProvider(BaseTextProvider):
         if base_url:
             http_options = types.HttpOptions(base_url=base_url)
 
-        self.client = genai.Client(
-            http_options=http_options,
-            api_key=api_key
-        )
+        if not api_key:
+            # Use Vertex AI with ADC
+            logger.info("No API key provided, using Vertex AI with ADC")
+            location = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
+            project = os.getenv('GOOGLE_CLOUD_PROJECT')
+            self.client = genai.Client(
+                vertexai=True,
+                project=project,
+                location=location,
+                http_options=http_options
+            )
+        else:
+            self.client = genai.Client(
+                http_options=http_options,
+                api_key=api_key
+            )
 
         # Default model
         self.model = kwargs.get('model', 'gemini-2.5-flash')
         self.max_tokens = kwargs.get('max_tokens', 8192)
         self.temperature = kwargs.get('temperature', 0.7)
-
-    def generate_text(self, prompt: str, **kwargs) -> Dict:
-        """Generate text using Gemini"""
-        try:
-            model = kwargs.get('model', self.model)
-            max_tokens = kwargs.get('max_tokens', self.max_tokens)
-            temperature = kwargs.get('temperature', self.temperature)
-
-            from google.genai import types
-
-            config = types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(thinking_budget=1000),
-                max_output_tokens=max_tokens,
-                temperature=temperature,
-            )
-
-            response = self.client.models.generate_content(
-                model=model,
-                contents=prompt,
-                config=config,
-            )
-
-            usage = {
-                'prompt_tokens': response.usage_metadata.prompt_token_count,
-                'completion_tokens': (
-                    response.usage_metadata.candidates_token_count
-                ),
-                'total_tokens': response.usage_metadata.total_token_count
-            }
-
-            return {
-                'text': response.text.strip(),
-                'usage': usage
-            }
-
-        except Exception as e:
-            logger.error(f"Google text generation error: {str(e)}")
-            raise ProviderAPIError(f"Google API error: {str(e)}") from e
 
 
 class GoogleImageProvider(BaseImageProvider):
@@ -92,10 +68,22 @@ class GoogleImageProvider(BaseImageProvider):
         if base_url:
             http_options = types.HttpOptions(base_url=base_url)
 
-        self.client = genai.Client(
-            http_options=http_options,
-            api_key=api_key
-        )
+        if not api_key:
+            # Use Vertex AI with ADC
+            logger.info("No API key provided, using Vertex AI with ADC")
+            location = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
+            project = os.getenv('GOOGLE_CLOUD_PROJECT')
+            self.client = genai.Client(
+                vertexai=True,
+                project=project,
+                location=location,
+                http_options=http_options
+            )
+        else:
+            self.client = genai.Client(
+                http_options=http_options,
+                api_key=api_key
+            )
 
         # Default model and settings
         self.model = kwargs.get('model', 'gemini-3-pro-image-preview')

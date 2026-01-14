@@ -30,8 +30,10 @@ steps:
       - "--platform"
       - "managed"
       - "--allow-unauthenticated"
+      - "--timeout"
+      - "600"
       - "--set-env-vars"
-      - "GOOGLE_APPLICATION_CREDENTIALS=/app/backend/serviceAccountKey.json,FIREBASE_STORAGE_BUCKET=studio-9837415787-b83b0.firebasestorage.app"
+      - "FIREBASE_STORAGE_BUCKET=studio-9837415787-b83b0.firebasestorage.app"
 
 # --- 添加以下这段配置 ---
 options:

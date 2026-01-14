@@ -6,7 +6,7 @@ const API_BASE_URL = 'https://ppteng-54124599328.asia-east1.run.app';
 // 创建 axios 实例
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 300000, // 5分钟超时（AI生成可能很慢）
+  timeout: 600000, // 10分钟超时（AI生成可能很慢）
 });
 
 // 请求拦截器
