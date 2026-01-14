@@ -15,8 +15,6 @@ from .base import (
 
 logger = logging.getLogger(__name__)
 
-
-
 class GoogleTextProvider(BaseTextProvider):
     """Google Gemini text generation provider"""
 
@@ -34,8 +32,15 @@ class GoogleTextProvider(BaseTextProvider):
         if not api_key:
             # Use Vertex AI with ADC
             logger.info("No API key provided, using Vertex AI with ADC")
-            location = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
-            project = os.getenv('GOOGLE_CLOUD_PROJECT')
+            
+            import vertexai
+            from google.auth import default
+            
+            credentials, project = default()
+            location = os.getenv('GOOGLE_CLOUD_LOCATION', 'asia-east1')
+            
+            vertexai.init(project=project, location=location, credentials=credentials)
+            
             self.client = genai.Client(
                 vertexai=True,
                 project=project,
@@ -71,8 +76,15 @@ class GoogleImageProvider(BaseImageProvider):
         if not api_key:
             # Use Vertex AI with ADC
             logger.info("No API key provided, using Vertex AI with ADC")
-            location = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
-            project = os.getenv('GOOGLE_CLOUD_PROJECT')
+            
+            import vertexai
+            from google.auth import default
+            
+            credentials, project = default()
+            location = os.getenv('GOOGLE_CLOUD_LOCATION', 'asia-east1')
+            
+            vertexai.init(project=project, location=location, credentials=credentials)
+            
             self.client = genai.Client(
                 vertexai=True,
                 project=project,
