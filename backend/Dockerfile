@@ -58,4 +58,5 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Start application using gunicorn for production
-CMD ["gunicorn", "--chdir", "/app/backend", "--bind", "0.0.0.0:8080", "--timeout", "120", "--workers", "2", "app:app"]
+# Start application using python directly for debugging
+CMD ["python", "app.py"]
