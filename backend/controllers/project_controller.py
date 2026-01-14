@@ -267,7 +267,7 @@ def create_project():
         }, status_code=201)
     
     except Exception as e:
-        logger.error(f"create_project failed: {str(e)}", exc_info=True)
+        logging.exception("Detailed Error:")
         return error_response('SERVER_ERROR', str(e), 500)
 
 
