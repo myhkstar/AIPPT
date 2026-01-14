@@ -9,32 +9,42 @@ def init_firebase():
     if not firebase_admin._apps:
         # Try to get credentials from environment variable (JSON string)
         cred_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+        
+        # Log environment status (don't log the actual key)
+        logging.info(f"FIREBASE_SERVICE_ACCOUNT present: {bool(cred_json)}")
+        logging.info(f"GOOGLE_APPLICATION_CREDENTIALS: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
+        logging.info(f"FIREBASE_STORAGE_BUCKET: {os.getenv('FIREBASE_STORAGE_BUCKET')}")
 
         if cred_json:
-            import json
-
-            cred_dict = json.loads(cred_json)
-            cred = credentials.Certificate(cred_dict)
-            firebase_admin.initialize_app(
-                cred, {"storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET")}
-            )
-            logging.info("Firebase initialized with service account from environment")
+            try:
+                import json
+                cred_dict = json.loads(cred_json)
+                cred = credentials.Certificate(cred_dict)
+                firebase_admin.initialize_app(
+                    cred, {"storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET")}
+                )
+                logging.info("Firebase initialized with service account from environment")
+            except Exception as e:
+                logging.error(f"Failed to initialize with FIREBASE_SERVICE_ACCOUNT: {e}", exc_info=True)
+                raise e
         else:
             # Fallback to default credentials (works on Cloud Run)
             try:
+                logging.info("Attempting to initialize with Default Credentials (ADC)...")
                 firebase_admin.initialize_app(
                     options={"storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET")}
                 )
                 logging.info("Firebase initialized with default credentials")
             except Exception as e:
-                logging.error(f"Failed to initialize Firebase: {e}")
-                logging.warning("App will continue without Firebase. Firestore operations will fail.")
-                # Do not raise here to allow app to start for local debugging
+                logging.error(f"Failed to initialize Firebase with ADC: {e}", exc_info=True)
+                # We must raise here because the app cannot function without Firestore
+                raise e
 
     try:
         return firestore.client(), storage.bucket(), auth
-    except Exception:
-        return None, None, None
+    except Exception as e:
+        logging.error(f"Failed to get Firestore/Storage clients: {e}", exc_info=True)
+        raise e
 
 
 # Global clients

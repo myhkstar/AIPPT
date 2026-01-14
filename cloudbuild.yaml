@@ -30,6 +30,8 @@ steps:
       - "--platform"
       - "managed"
       - "--allow-unauthenticated"
+      - "--set-env-vars"
+      - "GOOGLE_APPLICATION_CREDENTIALS=/app/backend/serviceAccountKey.json"
 
 # --- 添加以下这段配置 ---
 options:
