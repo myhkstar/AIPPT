@@ -58,9 +58,5 @@ WORKDIR /app/backend
 # 3. 关键：将当前目录添加到 Python 路径，解决导入问题
 ENV PYTHONPATH=/app/backend
 
-# 4. 使用更直接的启动方式 (先用 python 启动确保能看到具体的报错)
-# 4. 使用更直接的启动方式 (先用 python 启动确保能看到具体的报错)
-CMD ["sh", "-c", "ls -R /app && python app.py"]
-
-# 等 python app.py 能跑通后，再换回下面这行更专业的 Gunicorn 命令：
-# CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "120", "app:app"]
+# 4. Start the application with Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "120", "app:app"]

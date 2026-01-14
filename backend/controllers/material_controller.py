@@ -19,7 +19,23 @@ material_bp = Blueprint('materials', __name__, url_prefix='/api/projects')
 material_global_bp = Blueprint(
     'materials_global', __name__, url_prefix='/api/materials'
 )
-firestore_service = FirestoreService()
+
+
+class LazyFirestoreService:
+    def __init__(self):
+        self._service = None
+
+    @property
+    def service(self):
+        if self._service is None:
+            self._service = FirestoreService()
+        return self._service
+
+    def __getattr__(self, name):
+        return getattr(self.service, name)
+
+
+firestore_service = LazyFirestoreService()
 
 ALLOWED_MATERIAL_EXTENSIONS = {
     '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'

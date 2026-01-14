@@ -16,7 +16,23 @@ from services.task_manager import (
 logger = logging.getLogger(__name__)
 
 page_bp = Blueprint('pages', __name__, url_prefix='/api/projects')
-firestore_service = FirestoreService()
+
+
+class LazyFirestoreService:
+    def __init__(self):
+        self._service = None
+
+    @property
+    def service(self):
+        if self._service is None:
+            self._service = FirestoreService()
+        return self._service
+
+    def __getattr__(self, name):
+        return getattr(self.service, name)
+
+
+firestore_service = LazyFirestoreService()
 
 
 def _create_ai_service_from_request(request_data: dict = None) -> AIService:

@@ -14,7 +14,23 @@ from services.firestore_service import FirestoreService
 logger = logging.getLogger(__name__)
 
 export_bp = Blueprint('export', __name__, url_prefix='/api/projects')
-firestore_service = FirestoreService()
+
+
+class LazyFirestoreService:
+    def __init__(self):
+        self._service = None
+
+    @property
+    def service(self):
+        if self._service is None:
+            self._service = FirestoreService()
+        return self._service
+
+    def __getattr__(self, name):
+        return getattr(self.service, name)
+
+
+firestore_service = LazyFirestoreService()
 
 
 @export_bp.route('/<project_id>/export/pptx', methods=['GET'])

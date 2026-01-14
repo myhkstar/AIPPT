@@ -7,13 +7,10 @@ import logging
 from dotenv import load_dotenv
 from flask import Flask, send_from_directory
 from flask_cors import CORS
-logging.basicConfig(level=logging.INFO)
-logging.info("Starting app.py imports...")
 
 from firebase_config import init_firebase
 from config import Config
 
-logging.info("Importing controllers...")
 from controllers import (
     project_bp,
     page_bp,
@@ -29,6 +26,10 @@ from controllers import (
     user_bp,
     admin_bp
 )
+
+logging.basicConfig(level=logging.INFO)
+logging.info("Starting app.py imports...")
+logging.info("Importing controllers...")
 logging.info("All controllers imported successfully")
 
 # Load environment variables

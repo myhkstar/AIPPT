@@ -12,7 +12,8 @@ from services.firestore_service import FirestoreService
 from services.usage_service import UsageService
 
 logger = logging.getLogger(__name__)
-firestore_service = FirestoreService()
+logger = logging.getLogger(__name__)
+# firestore_service = FirestoreService()  # Removed to prevent import-time initialization
 
 
 class TaskManager:
@@ -60,6 +61,7 @@ def generate_descriptions_task(task_id: str, project_id: str, user_id: str,
     """
     Background task for generating page descriptions
     """
+    firestore_service = FirestoreService()
     try:
         # Update status to PROCESSING
         firestore_service.update_task(task_id, {
@@ -176,6 +178,7 @@ def generate_images_task(task_id: str, project_id: str, user_id: str,
     """
     Background task for generating page images
     """
+    firestore_service = FirestoreService()
     try:
         # Update task status to PROCESSING
         firestore_service.update_task(task_id, {
@@ -347,6 +350,7 @@ def generate_single_page_image_task(
     """
     Background task for generating a single page image
     """
+    firestore_service = FirestoreService()
     try:
         # Update task status to PROCESSING
         firestore_service.update_task(task_id, {
@@ -482,6 +486,7 @@ def edit_page_image_task(
     """
     Background task for editing a page image
     """
+    firestore_service = FirestoreService()
     try:
         # Update task status to PROCESSING
         firestore_service.update_task(task_id, {
@@ -576,6 +581,7 @@ def generate_material_image_task(
     """
     Background task for generating a material image
     """
+    firestore_service = FirestoreService()
     try:
         # Update task status to PROCESSING
         firestore_service.update_task(task_id, {

@@ -9,6 +9,7 @@ from utils.auth_middleware import auth_required
 from services import AIService, ProjectContext
 from services.firestore_service import FirestoreService
 from services.task_manager import (
+    task_manager,
     generate_descriptions_task,
     generate_images_task
 )
@@ -18,12 +19,29 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 project_bp = Blueprint('projects', __name__, url_prefix='/api/projects')
-firestore_service = FirestoreService()
+
+
+class LazyFirestoreService:
+    def __init__(self):
+        self._service = None
+
+    @property
+    def service(self):
+        if self._service is None:
+            self._service = FirestoreService()
+        return self._service
+
+    def __getattr__(self, name):
+        return getattr(self.service, name)
+
+
+firestore_service = LazyFirestoreService()
 
 
 def _create_ai_service_from_request(request_data: dict = None) -> AIService:
     """
-    Create AI service instance from request data or fallback to environment config
+    Create AI service instance from request data or fallback to environment
+    config
     
     Args:
         request_data: Request data that may contain API configurations
@@ -52,7 +70,9 @@ def _create_ai_service_from_request(request_data: dict = None) -> AIService:
                 'max_tokens': text_api.get('max_tokens'),
                 'temperature': text_api.get('temperature'),
             }
-            logger.info(f"Using frontend text API config: {text_config['provider']}")
+            logger.info(
+                f"Using frontend text API config: {text_config['provider']}"
+            )
         
         # Extract image API config
         image_api = api_config.get('image_api')
@@ -66,7 +86,9 @@ def _create_ai_service_from_request(request_data: dict = None) -> AIService:
                 'resolution': image_api.get('resolution'),
                 'style': image_api.get('style'),
             }
-            logger.info(f"Using frontend image API config: {image_config['provider']}")
+            logger.info(
+                f"Using frontend image API config: {image_config['provider']}"
+            )
     
     # Fallback to environment config if no API config provided
     if not text_config:
@@ -99,7 +121,11 @@ def _create_ai_service_from_request(request_data: dict = None) -> AIService:
     
     # 检查是否至少有一个可用的配置
     if not text_config and not image_config:
-        raise ValueError("No valid API configuration found. Please configure at least one API in the frontend or set GOOGLE_API_KEY in environment variables.")
+        raise ValueError(
+            "No valid API configuration found. Please configure at least one "
+            "API in the frontend or set GOOGLE_API_KEY in environment "
+            "variables."
+        )
     
     try:
         return AIService(text_config=text_config, image_config=image_config)
@@ -108,15 +134,20 @@ def _create_ai_service_from_request(request_data: dict = None) -> AIService:
         raise ValueError(f"Failed to initialize AI service: {str(e)}")
 
 
-def _get_project_reference_files_content(project_id: str, user_id: str) -> list:
+def _get_project_reference_files_content(
+    project_id: str, user_id: str
+) -> list:
     """
     Get reference files content for a project
     """
-    reference_files = firestore_service.list_project_reference_files(project_id, user_id)
+    reference_files = firestore_service.list_project_reference_files(
+        project_id, user_id
+    )
     
     files_content = []
     for ref_file in reference_files:
-        if ref_file.get('parse_status') == 'completed' and ref_file.get('markdown_content'):
+        if (ref_file.get('parse_status') == 'completed' and
+                ref_file.get('markdown_content')):
             files_content.append({
                 'filename': ref_file.get('filename'),
                 'content': ref_file.get('markdown_content')
@@ -287,9 +318,13 @@ def update_project(project_id):
         if 'pages_order' in data:
             pages_order = data['pages_order']
             for index, page_id in enumerate(pages_order):
-                firestore_service.update_page(project_id, page_id, {'order_index': index}, user_id)
+                firestore_service.update_page(
+                    project_id, page_id, {'order_index': index}, user_id
+                )
         
-        return success_response(firestore_service.get_project(project_id, user_id))
+        return success_response(
+            firestore_service.get_project(project_id, user_id)
+        )
     
     except Exception as e:
         return error_response('SERVER_ERROR', str(e), 500)
@@ -336,17 +371,23 @@ def generate_outline(project_id):
         ai_service = _create_ai_service_from_request(request_data)
         
         # Get reference files content and create project context
-        reference_files_content = _get_project_reference_files_content(project_id, user_id)
+        reference_files_content = _get_project_reference_files_content(
+            project_id, user_id
+        )
         
         # 根据项目类型选择不同的处理方式
         if project.get('creation_type') == 'outline':
             if not project.get('outline_text'):
-                return bad_request("outline_text is required for outline type project")
+                return bad_request(
+                    "outline_text is required for outline type project"
+                )
             
             project_context = ProjectContext(project, reference_files_content)
             outline = ai_service.parse_outline_text(project_context)
         elif project.get('creation_type') == 'descriptions':
-            return bad_request("Use /generate/from-description endpoint for descriptions type")
+            return bad_request(
+                "Use /generate/from-description endpoint for descriptions type"
+            )
         else:
             data = request.get_json() or {}
             idea_prompt = data.get('idea_prompt') or project.get('idea_prompt')
@@ -354,7 +395,9 @@ def generate_outline(project_id):
             if not idea_prompt:
                 return bad_request("idea_prompt is required")
             
-            firestore_service.update_project(project_id, {'idea_prompt': idea_prompt}, user_id)
+            firestore_service.update_project(
+                project_id, {'idea_prompt': idea_prompt}, user_id
+            )
             project['idea_prompt'] = idea_prompt
             
             project_context = ProjectContext(project, reference_files_content)
@@ -424,11 +467,14 @@ def generate_from_description(project_id):
             return not_found('Project')
 
         if project.get('creation_type') != 'descriptions':
-            return bad_request("This endpoint is only for descriptions type projects")
+            return bad_request(
+                "This endpoint is only for descriptions type projects"
+            )
 
         # Get description text
         data = request.get_json() or {}
-        description_text = data.get('description_text') or project.get('description_text')
+        description_text = (data.get('description_text') or
+                            project.get('description_text'))
 
         if not description_text:
             return bad_request("description_text is required")
@@ -442,7 +488,9 @@ def generate_from_description(project_id):
         ai_service = _create_ai_service_from_request(data)
 
         # Get reference files content and create project context
-        reference_files_content = _get_project_reference_files_content(project_id, user_id)
+        reference_files_content = _get_project_reference_files_content(
+            project_id, user_id
+        )
         project_context = ProjectContext(project, reference_files_content)
 
         logger.info(f"开始从描述生成大纲和页面描述: 项目 {project_id}")
@@ -454,14 +502,19 @@ def generate_from_description(project_id):
 
         # Step 2: Split description into page descriptions
         logger.info("Step 2: 切分描述文本到每页描述...")
-        page_descriptions = ai_service.parse_description_to_page_descriptions(project_context, outline)
+        page_descriptions = ai_service.parse_description_to_page_descriptions(
+            project_context, outline
+        )
         logger.info(f"描述切分完成，共 {len(page_descriptions)} 页")
 
         # Step 3: Flatten outline to pages
         pages_data = ai_service.flatten_outline(outline)
 
         if len(pages_data) != len(page_descriptions):
-            logger.warning(f"页面数量不匹配: 大纲 {len(pages_data)} 页, 描述 {len(page_descriptions)} 页")
+            logger.warning(
+                f"页面数量不匹配: 大纲 {len(pages_data)} 页, "
+                f"描述 {len(page_descriptions)} 页"
+            )
             min_count = min(len(pages_data), len(page_descriptions))
             pages_data = pages_data[:min_count]
             page_descriptions = page_descriptions[:min_count]
@@ -471,7 +524,9 @@ def generate_from_description(project_id):
 
         # Step 5: Create pages with both outline and description
         pages_list = []
-        for i, (page_data, page_desc) in enumerate(zip(pages_data, page_descriptions)):
+        for i, (page_data, page_desc) in enumerate(
+            zip(pages_data, page_descriptions)
+        ):
             page_dict = {
                 'project_id': project_id,
                 'user_id': user_id,
@@ -500,8 +555,10 @@ def generate_from_description(project_id):
 
         logger.info(f"从描述生成完成: 项目 {project_id}, 创建了 {len(pages_list)} 个页面")
 
-        # Record usage (this endpoint calls multiple AI methods, we take the last one or aggregate)
-        # For simplicity, we'll record the last usage which is usually the most significant
+        # Record usage (this endpoint calls multiple AI methods, we take the
+        # last one or aggregate)
+        # For simplicity, we'll record the last usage which is usually the
+        # most significant
         usage = ai_service.last_usage
         tokens = usage.get('total_tokens', 0)
         UsageService.record_usage(
@@ -517,7 +574,8 @@ def generate_from_description(project_id):
         })
 
     except Exception as e:
-        logger.error(f"generate_from_description failed: {str(e)}", exc_info=True)
+        logger.error(f"generate_from_description failed: {str(e)}",
+                     exc_info=True)
         return error_response('AI_SERVICE_ERROR', str(e), 503)
 
 
@@ -579,7 +637,9 @@ def generate_descriptions(project_id):
         ai_service = _create_ai_service_from_request(data)
 
         # Get reference files content and create project context
-        reference_files_content = _get_project_reference_files_content(project_id, user_id)
+        reference_files_content = _get_project_reference_files_content(
+            project_id, user_id
+        )
         project_context = ProjectContext(project, reference_files_content)
 
         # Submit background task
@@ -747,7 +807,9 @@ def refine_outline(project_id):
         ai_service = _create_ai_service_from_request(data)
 
         # Get reference files content and create project context
-        reference_files_content = _get_project_reference_files_content(project_id, user_id)
+        reference_files_content = _get_project_reference_files_content(
+            project_id, user_id
+        )
         project_context = ProjectContext(project, reference_files_content)
 
         # Get previous requirements from request
@@ -774,7 +836,9 @@ def refine_outline(project_id):
             if old_outline and old_outline.get('title'):
                 title = old_outline.get('title')
                 if old_page.get('description_content'):
-                    descriptions_map[title] = old_page.get('description_content')
+                    descriptions_map[title] = old_page.get(
+                        'description_content'
+                    )
                 if old_page.get('status') in [
                     'DESCRIPTION_GENERATED',
                     'IMAGE_GENERATED',
@@ -853,15 +917,21 @@ def refine_descriptions(project_id):
         for i, page in enumerate(pages):
             current_descriptions.append({
                 'index': i + 1,
-                'title': page.get('outline_content', {}).get('title', 'Untitled'),
-                'description_content': page.get('description_content', {}).get('text', '')
+                'title': page.get('outline_content', {}).get(
+                    'title', 'Untitled'
+                ),
+                'description_content': page.get(
+                    'description_content', {}
+                ).get('text', '')
             })
 
         # Initialize AI service
         ai_service = _create_ai_service_from_request(data)
 
         # Get reference files content and create project context
-        reference_files_content = _get_project_reference_files_content(project_id, user_id)
+        reference_files_content = _get_project_reference_files_content(
+            project_id, user_id
+        )
         project_context = ProjectContext(project, reference_files_content)
 
         # Get outline

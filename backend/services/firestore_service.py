@@ -9,7 +9,7 @@ from google.cloud import firestore
 
 class FirestoreService:
     def __init__(self):
-        self.db, _ = get_firebase()
+        self.db, *_ = get_firebase()
 
     def _get_project_ref(self, project_id):
         return self.db.collection('projects').document(project_id)
