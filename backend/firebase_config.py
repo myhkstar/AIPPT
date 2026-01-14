@@ -15,13 +15,20 @@ def init_firebase():
         logging.info(f"GOOGLE_APPLICATION_CREDENTIALS: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
         logging.info(f"FIREBASE_STORAGE_BUCKET: {os.getenv('FIREBASE_STORAGE_BUCKET')}")
 
+        storage_bucket = os.getenv("FIREBASE_STORAGE_BUCKET")
+        if not storage_bucket:
+            logging.error("FIREBASE_STORAGE_BUCKET environment variable is missing!")
+            raise ValueError("Storage bucket name not specified in environment variables")
+            
+        logging.info(f"Using Storage Bucket: {storage_bucket}")
+
         if cred_json:
             try:
                 import json
                 cred_dict = json.loads(cred_json)
                 cred = credentials.Certificate(cred_dict)
                 firebase_admin.initialize_app(
-                    cred, {"storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET")}
+                    cred, {"storageBucket": storage_bucket}
                 )
                 logging.info("Firebase initialized with service account from environment")
             except Exception as e:
@@ -32,7 +39,7 @@ def init_firebase():
             try:
                 logging.info("Attempting to initialize with Default Credentials (ADC)...")
                 firebase_admin.initialize_app(
-                    options={"storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET")}
+                    options={"storageBucket": storage_bucket}
                 )
                 logging.info("Firebase initialized with default credentials")
             except Exception as e:
