@@ -97,9 +97,10 @@ def _create_ai_service_from_request(request_data: dict = None) -> AIService:
     is_cloud_run = os.getenv('K_SERVICE') is not None
     
     if not text_config:
-        google_api_key = current_app.config.get('GOOGLE_API_KEY')
+        google_api_key = current_app.config.get('GOOGLE_API_KEY') or os.getenv('GOOGLE_API_KEY')
         google_api_base = current_app.config.get('GOOGLE_API_BASE')
         
+        # Explicit fallback: If key exists or we are in Cloud Run, force use Google/Gemini
         if google_api_key or is_cloud_run:
             text_config = {
                 'provider': 'google',

@@ -70,6 +70,9 @@ IMAGE_PROVIDERS: Dict[str, Type[BaseImageProvider]] = {}
 if GOOGLE_AVAILABLE:
     TEXT_PROVIDERS['google'] = GoogleTextProvider
     IMAGE_PROVIDERS['google'] = GoogleImageProvider
+    # Add alias
+    TEXT_PROVIDERS['gemini'] = GoogleTextProvider
+    IMAGE_PROVIDERS['gemini'] = GoogleImageProvider
 
 if OPENAI_AVAILABLE:
     TEXT_PROVIDERS['openai'] = OpenAITextProvider
