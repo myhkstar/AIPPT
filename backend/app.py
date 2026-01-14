@@ -107,6 +107,6 @@ def create_app():
 # Create app instance
 app = create_app()
 
+port = int(os.environ.get("PORT", 8080))
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
