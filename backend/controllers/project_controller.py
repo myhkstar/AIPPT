@@ -2,6 +2,7 @@
 Project Controller - handles project-related endpoints
 """
 import logging
+import os
 import uuid
 from flask import Blueprint, request, current_app
 from utils import success_response, error_response, not_found, bad_request
@@ -36,6 +37,7 @@ class LazyFirestoreService:
 
 
 firestore_service = LazyFirestoreService()
+
 
 
 def _create_ai_service_from_request(request_data: dict = None) -> AIService:
@@ -91,14 +93,17 @@ def _create_ai_service_from_request(request_data: dict = None) -> AIService:
             )
     
     # Fallback to environment config if no API config provided
+    # Check if running in Cloud Run (K_SERVICE env var exists)
+    is_cloud_run = os.getenv('K_SERVICE') is not None
+    
     if not text_config:
         google_api_key = current_app.config.get('GOOGLE_API_KEY')
         google_api_base = current_app.config.get('GOOGLE_API_BASE')
         
-        if google_api_key:
+        if google_api_key or is_cloud_run:
             text_config = {
                 'provider': 'google',
-                'api_key': google_api_key,
+                'api_key': google_api_key or '',  # Empty string triggers ADC in provider
                 'base_url': google_api_base,
                 'model': current_app.config.get('GOOGLE_TEXT_MODEL', 'gemini-2.5-flash'),
             }
@@ -108,10 +113,10 @@ def _create_ai_service_from_request(request_data: dict = None) -> AIService:
         google_api_key = current_app.config.get('GOOGLE_API_KEY')
         google_api_base = current_app.config.get('GOOGLE_API_BASE')
         
-        if google_api_key:
+        if google_api_key or is_cloud_run:
             image_config = {
                 'provider': 'google',
-                'api_key': google_api_key,
+                'api_key': google_api_key or '',  # Empty string triggers ADC in provider
                 'base_url': google_api_base,
                 'model': current_app.config.get('GOOGLE_IMAGE_MODEL', 'gemini-3-pro-image-preview'),
                 'aspect_ratio': '16:9',
@@ -124,7 +129,7 @@ def _create_ai_service_from_request(request_data: dict = None) -> AIService:
         raise ValueError(
             "No valid API configuration found. Please configure at least one "
             "API in the frontend or set GOOGLE_API_KEY in environment "
-            "variables."
+            "variables (or run in Cloud Run with ADC)."
         )
     
     try:

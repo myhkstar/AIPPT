@@ -12,6 +12,7 @@ from pathlib import Path
 from werkzeug.utils import secure_filename
 import tempfile
 import shutil
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -114,16 +115,19 @@ def generate_material_image(project_id):
         text_config = None
         image_config = None
         
-        if google_api_key:
+        # Check if running in Cloud Run
+        is_cloud_run = os.getenv('K_SERVICE') is not None
+        
+        if google_api_key or is_cloud_run:
             text_config = {
                 'provider': 'google',
-                'api_key': google_api_key,
+                'api_key': google_api_key or '',
                 'base_url': google_api_base,
                 'model': current_app.config.get('GOOGLE_TEXT_MODEL', 'gemini-2.5-flash'),
             }
             image_config = {
                 'provider': 'google',
-                'api_key': google_api_key,
+                'api_key': google_api_key or '',
                 'base_url': google_api_base,
                 'model': current_app.config.get('GOOGLE_IMAGE_MODEL', 'gemini-3-pro-image-preview'),
                 'aspect_ratio': current_app.config.get('DEFAULT_ASPECT_RATIO', '16:9'),

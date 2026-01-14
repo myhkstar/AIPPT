@@ -15,6 +15,7 @@ from .base import (
 
 logger = logging.getLogger(__name__)
 
+
 class GoogleTextProvider(BaseTextProvider):
     """Google Gemini text generation provider"""
 
