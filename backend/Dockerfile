@@ -49,14 +49,17 @@ COPY backend/ ./backend/
 # Copy built frontend artifacts from builder stage
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# Set environment variables
+# 1. 确保工作目录直接设在 backend 文件夹下
+WORKDIR /app/backend
+
+# 2. 再次确保依赖已安装（针对该目录）
+# 如果你之前是在根目录安装的，请确保这步能找到 pyproject.toml 或 requirements.txt
+
+# 3. 关键：将当前目录添加到 Python 路径，解决导入问题
 ENV PYTHONPATH=/app/backend
-ENV FLASK_APP=app.py
-ENV PORT=8080
 
-# Expose port (Cloud Run uses $PORT)
-EXPOSE 8080
-
-# Start application using gunicorn for production
-# Start application using python directly for debugging
+# 4. 使用更直接的启动方式 (先用 python 启动确保能看到具体的报错)
 CMD ["python", "app.py"]
+
+# 等 python app.py 能跑通后，再换回下面这行更专业的 Gunicorn 命令：
+# CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "120", "app:app"]
