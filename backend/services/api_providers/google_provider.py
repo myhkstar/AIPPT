@@ -4,14 +4,16 @@ Google Gemini API provider
 import logging
 from typing import List, Dict, Optional, Union
 from PIL import Image
-from google import genai
-from google.genai import types
+# Lazy imports
+# from google import genai
+# from google.genai import types
 
 from .base import (
     BaseTextProvider, BaseImageProvider, ProviderAPIError
 )
 
 logger = logging.getLogger(__name__)
+
 
 class GoogleTextProvider(BaseTextProvider):
     """Google Gemini text generation provider"""
@@ -20,6 +22,9 @@ class GoogleTextProvider(BaseTextProvider):
         super().__init__(api_key, base_url, **kwargs)
 
         # Initialize client
+        from google import genai
+        from google.genai import types
+
         http_options = None
         if base_url:
             http_options = types.HttpOptions(base_url=base_url)
@@ -40,6 +45,8 @@ class GoogleTextProvider(BaseTextProvider):
             model = kwargs.get('model', self.model)
             max_tokens = kwargs.get('max_tokens', self.max_tokens)
             temperature = kwargs.get('temperature', self.temperature)
+
+            from google.genai import types
 
             config = types.GenerateContentConfig(
                 thinking_config=types.ThinkingConfig(thinking_budget=1000),
@@ -70,6 +77,7 @@ class GoogleTextProvider(BaseTextProvider):
             logger.error(f"Google text generation error: {str(e)}")
             raise ProviderAPIError(f"Google API error: {str(e)}") from e
 
+
 class GoogleImageProvider(BaseImageProvider):
     """Google Gemini image generation provider"""
 
@@ -77,6 +85,9 @@ class GoogleImageProvider(BaseImageProvider):
         super().__init__(api_key, base_url, **kwargs)
 
         # Initialize client
+        from google import genai
+        from google.genai import types
+
         http_options = None
         if base_url:
             http_options = types.HttpOptions(base_url=base_url)
@@ -118,7 +129,7 @@ class GoogleImageProvider(BaseImageProvider):
                     if isinstance(ref_img, Image.Image):
                         contents.append(ref_img)
                     elif isinstance(ref_img, str):
-                        # Handle URL or path - this would need to be implemented
+                        # Handle URL or path - needs implementation
                         # based on the original logic in ai_service.py
                         pass
 
@@ -126,6 +137,8 @@ class GoogleImageProvider(BaseImageProvider):
                 f"Calling Gemini API for image generation with "
                 f"{len(contents) - 1} reference images..."
             )
+
+            from google.genai import types
 
             response = self.client.models.generate_content(
                 model=model,

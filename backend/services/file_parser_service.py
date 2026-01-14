@@ -10,10 +10,12 @@ import io
 import requests
 from typing import Optional, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from google import genai
-from google.genai import types
 from PIL import Image
-from markitdown import MarkItDown
+
+# Lazy imports
+# from google import genai
+# from google.genai import types
+# from markitdown import MarkItDown
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,8 @@ class FileParserService:
         # Initialize Gemini client for image captioning
         self.gemini_client = None
         if google_api_key:
+            from google import genai
+            from google.genai import types
             self.gemini_client = genai.Client(
                 http_options=types.HttpOptions(base_url=google_api_base) if google_api_base else None,
                 api_key=google_api_key
@@ -192,6 +196,7 @@ class FileParserService:
         """
         try:
             # Use markitdown to convert spreadsheet to markdown
+            from markitdown import MarkItDown
             md = MarkItDown()
             result = md.convert(file_path)
             markdown_content = result.text_content
@@ -577,6 +582,7 @@ class FileParserService:
             # Generate caption using Gemini
             prompt = "请用一句简短的中文描述这张图片的主要内容。只返回描述文字，不要其他解释。"
             
+            from google.genai import types
             result = self.gemini_client.models.generate_content(
                 model=self.image_caption_model,
                 contents=[image, prompt],
