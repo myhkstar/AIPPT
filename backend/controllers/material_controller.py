@@ -107,7 +107,30 @@ def generate_material_image(project_id):
             return bad_request("prompt is required")
 
         # Initialize services
-        ai_service = AIService()
+        # Construct API config from environment
+        google_api_key = current_app.config.get('GOOGLE_API_KEY')
+        google_api_base = current_app.config.get('GOOGLE_API_BASE')
+        
+        text_config = None
+        image_config = None
+        
+        if google_api_key:
+            text_config = {
+                'provider': 'google',
+                'api_key': google_api_key,
+                'base_url': google_api_base,
+                'model': current_app.config.get('GOOGLE_TEXT_MODEL', 'gemini-2.5-flash'),
+            }
+            image_config = {
+                'provider': 'google',
+                'api_key': google_api_key,
+                'base_url': google_api_base,
+                'model': current_app.config.get('GOOGLE_IMAGE_MODEL', 'gemini-3-pro-image-preview'),
+                'aspect_ratio': current_app.config.get('DEFAULT_ASPECT_RATIO', '16:9'),
+                'resolution': current_app.config.get('DEFAULT_RESOLUTION', '2K'),
+            }
+
+        ai_service = AIService(text_config=text_config, image_config=image_config)
         file_service = FileService()
 
         # Create temporary directory for reference images

@@ -100,9 +100,9 @@ def _create_ai_service_from_request(request_data: dict = None) -> AIService:
                 'provider': 'google',
                 'api_key': google_api_key,
                 'base_url': google_api_base,
-                'model': 'gemini-2.5-flash',
+                'model': current_app.config.get('GOOGLE_TEXT_MODEL', 'gemini-2.5-flash'),
             }
-            logger.info("Using environment text API config: google")
+            logger.info(f"Using environment text API config: google (model: {text_config['model']})")
     
     if not image_config:
         google_api_key = current_app.config.get('GOOGLE_API_KEY')
@@ -113,11 +113,11 @@ def _create_ai_service_from_request(request_data: dict = None) -> AIService:
                 'provider': 'google',
                 'api_key': google_api_key,
                 'base_url': google_api_base,
-                'model': 'gemini-3-pro-image-preview',
+                'model': current_app.config.get('GOOGLE_IMAGE_MODEL', 'gemini-3-pro-image-preview'),
                 'aspect_ratio': '16:9',
                 'resolution': '2K',
             }
-            logger.info("Using environment image API config: google")
+            logger.info(f"Using environment image API config: google (model: {image_config['model']})")
     
     # 检查是否至少有一个可用的配置
     if not text_config and not image_config:

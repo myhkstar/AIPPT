@@ -34,7 +34,9 @@ class Config:
     MINERU_TOKEN = os.getenv('MINERU_TOKEN', '')
     MINERU_API_BASE = os.getenv('MINERU_API_BASE', 'https://mineru.net')
     
-    # 图片识别模型配置
+    # AI Model Configuration
+    GOOGLE_TEXT_MODEL = os.getenv('GOOGLE_TEXT_MODEL', 'gemini-2.5-flash')
+    GOOGLE_IMAGE_MODEL = os.getenv('GOOGLE_IMAGE_MODEL', 'gemini-3-pro-image-preview')
     IMAGE_CAPTION_MODEL = os.getenv('IMAGE_CAPTION_MODEL', 'gemini-2.5-flash')
     
     # 并发配置
